@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+import asyncio
+from dataclasses import dataclass
+
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
+
+from app.config import Settings, load_app_config, AppConfig
+from app.infra.db import make_engine, make_session_factory
+from app.infra.redis import InMemoryStore, RedisStore, KeyValueStore
+from app.integrations.adzuna_client import AdzunaClient
+from app.telemetry.logger import setup_logging, get_logger
+
+
+@dataclass
+class Container:
+    settings: Settings
+    cfg: AppConfig
+    store: KeyValueStore
+    adzuna: AdzunaClient
+    bot: Bot
+    dp: Dispatcher
+
+
+async def build_container() -> Container:
+    setup_logging()
+    settings = Settings()
+    cfg = load_app_config(settings.CONFIG_PATH)
+
+    # Redis store
+    try:
+        store: KeyValueStore = RedisStore(settings.REDIS_URL)
+    except Exception:
+        store = InMemoryStore()  # graceful degradation
+
+    # DB
+    engine = make_engine(settings.POSTGRES_DSN)
+    session_factory = make_session_factory(engine)
+
+    adzuna = AdzunaClient(settings, cfg)
+
+    bot = Bot(settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    dp = Dispatcher(storage=MemoryStorage())
+
+    # Attach shared context for middlewares/handlers
+    dp["settings"] = settings
+    dp["cfg"] = cfg
+    dp["store"] = store
+    dp["session_factory"] = session_factory
+    dp["adzuna"] = adzuna
+
+    return Container(settings=settings, cfg=cfg, store=store, adzuna=adzuna, bot=bot, dp=dp)

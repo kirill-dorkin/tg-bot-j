@@ -1,0 +1,12 @@
+search:
+  results_per_page: 50
+  max_days_old_default: 14
+scoring:
+  weights: {title_desc: 45, location: 20, salary: 15, freshness: 10, category: 10}
+  clickbait_multiplier: 0.85
+timeouts:
+  adzuna_connect: 3
+  adzuna_read: 7
+  total: 10
+ratelimit:
+  per_user_per_minute: 10

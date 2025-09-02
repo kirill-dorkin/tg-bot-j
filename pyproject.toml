@@ -1,0 +1,55 @@
+[tool.poetry]
+name = "adzuna-job-bot"
+version = "0.1.0"
+description = "Telegram job-search bot (Adzuna source) with aiogram 3, PostgreSQL, Redis, and ranking pipeline"
+authors = ["Your Team <team@example.com>"]
+readme = "README.md"
+packages = [{ include = "app" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+aiogram = "^3.4.1"
+httpx = "^0.27.0"
+structlog = "^24.1.0"
+loguru = "^0.7.2"
+pydantic = "^2.7.0"
+pydantic-settings = "^2.3.4"
+SQLAlchemy = "^2.0.30"
+alembic = "^1.13.1"
+psycopg = {extras = ["binary"], version = "^3.1.18"}
+redis = "^5.0.4"
+pyyaml = "^6.0.1"
+uvloop = {version = "^0.19.0", optional = true, markers = "sys_platform == 'linux'"}
+asyncpg = "^0.29.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
+pytest-asyncio = "^0.23.6"
+mypy = "^1.10.0"
+ruff = "^0.4.2"
+types-redis = "^4.6.0.20240425"
+types-PyYAML = "^6.0.12.20240311"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = [
+  "E","F","I","N","UP","ANN","ASYNC","SLOT","RUF"
+]
+ignore = ["ANN101","ANN102","ANN401"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_ignores = true
+plugins = []
+
+[build-system]
+requires = ["poetry-core>=1.8.0"]
+build-backend = "poetry.core.masonry.api"

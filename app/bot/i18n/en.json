@@ -1,0 +1,127 @@
+{
+  "menu.title": "🏠 Menu\nChoose an action:",
+  "menu.sub": "Search, profile, subscriptions, favorites.",
+  "menu.sub.variants": [
+    "Search, profile, subscriptions, favorites.",
+    "Vacancies, parameters, mailing, saved."
+  ],
+  "menu.actions": ["🔎 Search", "👤 Profile", "📬 Subscriptions", "⭐️ Favorites", "⚙️ Settings", "❓ Help"],
+
+  "start.welcome": "👋 Hi! I’ll quickly find fresh jobs that match your profile.\n\n🌍 Choose interface language:",
+  "start.choose_lang": "🌍 Choose interface language:",
+  "start.lang_set": "✅ Done",
+  "start.next_profile": "✅ Done. Next — a 30-sec profile to show only relevant jobs.",
+
+  "profile.title": "👤 Profile",
+  "profile.sub": "Short parameters for filtering.",
+  "profile.kpv.role": "Role",
+  "profile.kpv.skills": "Skills",
+  "profile.kpv.locations": "Locations",
+  "profile.kpv.salary_min": "Min. salary",
+  "profile.kpv.formats": "Format",
+  "profile.kpv.experience": "Experience (years)",
+  "profile.saved": "Profile saved",
+  "profile.deleted": "Profile deleted",
+  "profile.edit.title": "EDIT",
+  "profile.edit.sub": "Choose a field to change.",
+
+  "profile.form.title": "📝 Profile",
+  "profile.form.role": "🎯 Role (e.g., Frontend Developer)",
+  "profile.form.skills": "🧩 Skills (comma-separated: React, TypeScript, Next.js)",
+  "profile.form.locations": "📍 Locations (city/country) + Remote",
+  "profile.form.salary_min": "💰 Minimum salary (number)",
+  "profile.form.formats": "🏙 Format: remote / hybrid / onsite",
+  "profile.form.experience": "⌛️ Experience in years (integer)",
+
+  "search.title": "🔎 Search\nAdjust filters or start now:",
+  "search.sub": "Set parameters or use your profile.",
+  "search.sub.variants": [
+    "Set parameters or use your profile.",
+    "Set filters or take from profile."
+  ],
+  "search.params.kpv": [
+    "what: {what}",
+    "where: {where}",
+    "distance_km: {distance}",
+    "max_days_old: {max_days}",
+    "contract_type: {contract}",
+    "employment_type: {employment}",
+    "category: {category}",
+    "sort: {sort}"
+  ],
+  "search.progress.step1": "⏳ Searching.",
+  "search.progress.step2": "⏳ Searching..",
+  "search.progress.step3": "⏳ Searching...",
+  "search.empty": "😕 No matching jobs.",
+  "search.empty.hint": "Try relaxing filters or allowing Remote.",
+
+  "results.title": "📊 Found",
+  "results.kpv": ["Shown: {shown} of {total}"],
+  "results.none_more": "No more vacancies",
+
+  "card.line1": "💼 {title} — {company}",
+  "card.line2": "📍 {city_region}   💰 {salary}   ⏱ {posted_human}",
+  "card.summary": "{summary}",
+  "card.apply_url": "{url}",
+  "card.actions": ["✅ Apply", "⭐️ Save", "🧭 Similar", "🙈 Hide company", "🚩 Report"],
+
+  "actions.applied": "🔗 Apply link:",
+  "actions.saved": "⭐️ Added to favorites",
+  "actions.already_saved": "⭐️ Already in favorites",
+  "actions.hidden": "🙈 Company hidden",
+  "actions.already_hidden": "🙈 Already hidden",
+  "actions.reported": "🚩 Complaint recorded",
+  "actions.already_applied": "Already done",
+
+  "favorites.title": "⭐️ Favorites\nTotal: {count}",
+  "favorites.sub": "Short list of saved vacancies.",
+  "favorites.total": "Total: {count}",
+  "favorites.cleared": "Favorites cleared",
+
+  "report.title": "🚩 Report",
+  "report.sub": "Choose a reason:",
+  "report.reasons": ["📢 Spam", "🎯 Wrong role", "💸 Lower salary", "🔁 Duplicate", "🧷 Offensive", "✍️ Other"],
+  "report.recorded": "🚩 Complaint recorded",
+
+  "subs.title": "📬 Subscriptions\nDelivery method and time. Timezone: {TZ}",
+  "subs.sub": "Delivery method and time.",
+  "subs.tz": "Timezone: {TZ}",
+  "subs.updated": "✅ Subscription updated",
+
+  "settings.title": "⚙️ Settings\nLanguage, timezone, export.",
+  "settings.sub": "Language, timezone, export.",
+  "settings.lang_saved": "✅ Language saved",
+  "settings.tz_saved": "✅ Saved",
+  "export.ready": "📤 Export ready",
+
+  "errors.number": "❗️ Invalid value. Expected a number.",
+  "errors.empty": "❗️ Field cannot be empty.",
+  "errors.timeout": "⌚️ Timeout. Action cancelled.",
+  "errors.ratelimit": "⏱ Too many requests. Try later.",
+
+  "help.title": "❓ Help",
+  "help.commands": "/find /profile /subscribe /favorites /settings /help",
+  "help.source": "Source: Adzuna. Algorithm: filter → dedup → scoring.",
+
+  "health.ok": "✅ OK",
+
+  "buttons.lang.ru": "🇷🇺 Russian",
+  "buttons.lang.en": "🇬🇧 English",
+  "buttons.profile.fill": "📝 Fill profile",
+  "buttons.profile.skip": "⏭ Skip (not recommended)",
+  "buttons.search.what": "✏️ what",
+  "buttons.search.where": "📍 where",
+  "buttons.search.distance": "📏 distance",
+  "buttons.search.days": "⏱ days",
+  "buttons.search.contract": "📄 contract",
+  "buttons.search.employment": "⏰ employment",
+  "buttons.search.category": "🗂 category",
+  "buttons.search.sort": "↕️ sort",
+  "buttons.search.start": "▶️ Start",
+  "buttons.search.reset": "♻️ Reset",
+  "buttons.back": "⬅️ Back",
+  "buttons.more": "➡️ More",
+  "chips.search.clear_category": "🧹 Clear category",
+  "chips.search.days_30": "⏳ days=30",
+  "chips.search.add_remote": "🌐 Add Remote"
+}
