@@ -121,6 +121,11 @@
   "buttons.search.reset": "♻️ Reset",
   "buttons.back": "⬅️ Back",
   "buttons.more": "➡️ More",
+  "buttons.subs.instant": "⚡️ Instant",
+  "buttons.subs.daily": "🗓 Daily",
+  "buttons.subs.weekly": "📅 Weekly",
+  "buttons.subs.toggle": "🔔 On/Off",
+  "buttons.subs.time": "⏰ Change time",
   "chips.search.clear_category": "🧹 Clear category",
   "chips.search.days_30": "⏳ days=30",
   "chips.search.add_remote": "🌐 Add Remote"
