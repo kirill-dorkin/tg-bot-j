@@ -161,11 +161,16 @@ async def on_lang_toggle(cq: CallbackQuery, session):
 
 
 EMPLOYMENT_LABELS = {
-    "full": "Full-time",
-    "part": "Part-time",
-    "contract": "Contract",
-    "intern": "Internship",
+    "full": ("Полная занятость", "Full-time"),
+    "part": ("Частичная занятость", "Part-time"),
+    "contract": ("Контракт", "Contract"),
+    "intern": ("Стажировка", "Internship"),
 }
+
+
+def _employment_label(lang: str, code: str) -> str:
+    ru, en = EMPLOYMENT_LABELS.get(code, (code, code))
+    return ru if lang == "ru" else en
 
 
 def _render_profile_step(lang: str, step: int, payload: dict[str, Any]) -> tuple[str, InlineKeyboardMarkup]:
@@ -205,7 +210,7 @@ def _render_profile_step(lang: str, step: int, payload: dict[str, Any]) -> tuple
         selected: set[str] = set(payload.get("profile", {}).get("employment", []))
 
         def mark(code: str) -> str:
-            label = EMPLOYMENT_LABELS[code]
+            label = _employment_label(lang, code)
             return ("🟩 " if code in selected else "") + label
 
         rows = [
@@ -219,7 +224,7 @@ def _render_profile_step(lang: str, step: int, payload: dict[str, Any]) -> tuple
             ],
         ]
         if selected:
-            status = ", ".join(EMPLOYMENT_LABELS[s] for s in selected)
+            status = ", ".join(_employment_label(lang, s) for s in selected)
             txt = _L(
                 lang,
                 f"👤 Профиль · Шаг 3/4\nВыбрано: {status}",
@@ -233,7 +238,7 @@ def _render_profile_step(lang: str, step: int, payload: dict[str, Any]) -> tuple
     name = p.get("name", "—")
     industry = p.get("industry", "—")
     et = p.get("employment", [])
-    et_disp = ", ".join(EMPLOYMENT_LABELS.get(e, e) for e in et) if et else "—"
+    et_disp = ", ".join(_employment_label(lang, e) for e in et) if et else "—"
     txt = _L(lang,
               f"👤 Профиль · Шаг 4/4\nПроверьте данные:\n— Имя: {name}\n— Сфера: {industry}\n— Тип занятости: {et_disp}\n\nСохранить?",
               f"👤 Profile · Step 4/4\nReview details:\n— Name: {name}\n— Field: {industry}\n— Employment: {et_disp}\n\nSave?")
@@ -251,7 +256,9 @@ def _render_filters(lang: str, payload: dict[str, Any]) -> tuple[str, InlineKeyb
     salary_min = f.get("salary_min") or "-"
     remote_flag = f.get("remote", False)
     remote = "☑" if remote_flag else "☐"
-    employment = ",".join(f.get("employment", [])) or "-"
+    employment_codes = f.get("employment", [])
+    employment_ru = ",".join(_employment_label("ru", e) for e in employment_codes) or "-"
+    employment_en = ",".join(_employment_label("en", e) for e in employment_codes) or "-"
     days = f.get("days") or "7"
     header = _L(lang, "🔍 Поиск\nУточните фильтры или запустите сразу.", "🔍 Search\nAdjust filters or start now.")
     state_line_ru = (
@@ -259,7 +266,7 @@ def _render_filters(lang: str, payload: dict[str, Any]) -> tuple[str, InlineKeyb
         f"{_field_label('ru','where')}: \"{where}\" | "
         f"{_field_label('ru','salary_min')}: {salary_min} | "
         f"{_field_label('ru','remote')}: {'да' if remote_flag else 'нет'} | "
-        f"{_field_label('ru','employment')}: {employment} | "
+        f"{_field_label('ru','employment')}: {employment_ru} | "
         f"{_field_label('ru','days')}: {days}"
     )
     state_line_en = (
@@ -267,7 +274,7 @@ def _render_filters(lang: str, payload: dict[str, Any]) -> tuple[str, InlineKeyb
         f"{_field_label('en','where')}: \"{where}\" | "
         f"{_field_label('en','salary_min')}: {salary_min} | "
         f"{_field_label('en','remote')}: {remote_flag} | "
-        f"{_field_label('en','employment')}: {employment} | "
+        f"{_field_label('en','employment')}: {employment_en} | "
         f"{_field_label('en','days')}: {days}"
     )
     state_line = _L(lang, state_line_ru, state_line_en)
@@ -495,11 +502,18 @@ async def filters_edit(cq: CallbackQuery, session, t, lang: str):
     await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
     # Commit before prompting to avoid losing input if user replies quickly
     await session.commit()
-    hint = _L(
-        lang,
-        f"Введите значение для {_field_label('ru', field)}",
-        f"Enter value for {_field_label('en', field)}",
-    )
+    if field == "what":
+        hint = _L(
+            lang,
+            "Введите должность или ключевые слова, например: Python разработчик",
+            "Enter job title or keywords, e.g., Python developer",
+        )
+    else:
+        hint = _L(
+            lang,
+            f"Введите значение для {_field_label('ru', field)}",
+            f"Enter value for {_field_label('en', field)}",
+        )
     text, kb = _render_filters(lang, payload)
     text = f"{text}\n\n{hint}"
     await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
