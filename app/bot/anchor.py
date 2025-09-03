@@ -763,7 +763,16 @@ async def search_show(cq: CallbackQuery, session, cfg: AppConfig, adzuna: Adzuna
     )
     params = SearchParams(max_days_old=cfg.search.max_days_old_default, sort="relevance")
     try:
-        results = await adzuna.search("gb", 1, cfg.search.results_per_page, what=profile.role or None, where=(payload.get("filters", {}).get("where") or None), sort=params.sort, max_days_old=params.max_days_old)
+        results = await adzuna.search(
+            "gb",
+            1,
+            cfg.search.results_per_page,
+            what=profile.role or None,
+            where=(payload.get("filters", {}).get("where") or None),
+            sort=params.sort,
+            max_days_old=params.max_days_old,
+            salary_min=profile.salary_min or None,
+        )
     except Exception:
         results = []
     pr = process(results, profile, params, cfg)

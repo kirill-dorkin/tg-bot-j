@@ -41,6 +41,7 @@ class AdzunaClient:
         where: str | None = None,
         sort: str | None = None,
         max_days_old: int | None = None,
+        salary_min: int | None = None,
     ) -> list[dict[str, Any]]:
         base = self._settings.ADZUNA_BASE_URL.rstrip("/")
         url = f"{base}/{country}/search/{page}"
@@ -57,6 +58,8 @@ class AdzunaClient:
             params["sort_by"] = sort
         if max_days_old is not None:
             params["max_days_old"] = max_days_old
+        if salary_min is not None:
+            params["salary_min"] = salary_min
 
         client = self._client_or_create()
         backoffs = [0.2, 0.4, 0.8]
