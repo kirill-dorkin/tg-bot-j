@@ -130,17 +130,16 @@ async def on_lang_set(cq: CallbackQuery, session, store: KeyValueStore):
     ui = UiSessionsRepo(session)
     row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
     await UsersRepo(session).set_lang(cq.from_user.id, lang)
-    # Show saved + menu
-    saved = _L(lang, "✅ Язык сохранён.\n30 секунд — и начнём показывать релевантные вакансии.", "✅ Language saved.\nGive me 30 seconds to tailor results to you.")
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=_L(lang, "🚀 Быстрый поиск", "🚀 Quick search"), callback_data="search:quick")],
-        [InlineKeyboardButton(text=_L(lang, "📝 Заполнить профиль", "📝 Fill profile"), callback_data="menu:profile")],
-        [InlineKeyboardButton(text=_L(lang, "⚙️ Настройки", "⚙️ Settings"), callback_data="menu:settings")],
-        [InlineKeyboardButton(text=_L(lang, "ℹ️ О боте", "ℹ️ About"), callback_data="menu:about")],
-        _footer_row(lang),
-    ])
-    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, saved, kb)
-    await ui.set_state(cq.message.chat.id, cq.from_user.id, screen_state="post_lang", payload={})
+    # Show saved notice and main menu
+    saved = _L(
+        lang,
+        "✅ Язык сохранён.\n30 секунд — и начнём показывать релевантные вакансии.",
+        "✅ Language saved.\nGive me 30 seconds to tailor results to you.",
+    )
+    menu_text, kb = _render_menu(lang)
+    text = f"{saved}\n\n{menu_text}"
+    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
+    await ui.set_state(cq.message.chat.id, cq.from_user.id, screen_state="menu", payload={})
     await session.commit()
     await cq.answer("")
 
