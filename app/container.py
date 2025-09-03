@@ -38,6 +38,8 @@ async def build_container() -> Container:
         # ensure connection is alive; fallback to memory if unreachable
         await store.setex("__ping__", 1, "1")
     except Exception:
+        if not settings.ALLOW_IN_MEMORY_STORE:
+            raise RuntimeError("Redis unavailable and in-memory store is disabled")
         store = InMemoryStore()  # graceful degradation
 
     # DB
