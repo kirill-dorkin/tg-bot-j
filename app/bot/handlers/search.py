@@ -4,18 +4,21 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 import asyncio
+import httpx
 
+from app.bot.fsm_states import SearchFSM
+from app.bot.keyboards import card_kb
 from app.config import AppConfig
 from app.domain.models import Profile as DProfile, SearchParams
 from app.domain.pipeline import process
 from app.integrations.adzuna_client import AdzunaClient
 from app.repositories.profiles import ProfilesRepo
 from app.repositories.shortkeys import ShortKeysRepo
-from app.bot.keyboards import card_kb
-from app.bot.fsm_states import SearchFSM
+from app.telemetry.logger import get_logger
 
 
 router = Router()
+log = get_logger("handlers.search")
 
 
 def _format_card_message(card: dict, t) -> str:
@@ -103,11 +106,23 @@ async def find_cmd(
             max_days_old=params.max_days_old,
             salary_min=profile.salary_min or None,
         )
-    except Exception:
-        results = []
+    except ValueError as e:
+        log.warning("search.invalid_params", err=str(e))
+        await m.answer(t("search.invalid_params").replace("{err}", str(e)))
+        return
+    except httpx.HTTPError as e:
+        log.warning("search.api_error", err=str(e))
+        await m.answer(t("search.api_error"))
+        return
     pr = process(results, profile, params, cfg)
     if not pr["cards"]:
-        await m.answer(t("search.empty"))
+        loc = profile.locations[0] if profile.locations else "—"
+        msg = (
+            t("search.no_results")
+            .replace("{role}", profile.role)
+            .replace("{location}", loc)
+        )
+        await m.answer(msg)
         return
     sk = ShortKeysRepo(store)
     for c in pr["cards"][:5]:
@@ -171,11 +186,25 @@ async def search_start(
             max_days_old=params.max_days_old,
             salary_min=profile.salary_min or None,
         )
-    except Exception:
-        results = []
+    except ValueError as e:
+        log.warning("search.invalid_params", err=str(e))
+        await cq.message.answer(t("search.invalid_params").replace("{err}", str(e)))
+        await cq.answer("")
+        return
+    except httpx.HTTPError as e:
+        log.warning("search.api_error", err=str(e))
+        await cq.message.answer(t("search.api_error"))
+        await cq.answer("")
+        return
     pr = process(results, profile, params, cfg)
     if not pr["cards"]:
-        await cq.message.answer(t("search.empty"))
+        loc = profile.locations[0] if profile.locations else "—"
+        msg = (
+            t("search.no_results")
+            .replace("{role}", profile.role)
+            .replace("{location}", loc)
+        )
+        await cq.message.answer(msg)
         await cq.answer("")
         return
     sk = ShortKeysRepo(store)

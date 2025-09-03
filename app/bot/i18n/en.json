@@ -53,6 +53,9 @@
   "search.progress.step2": "⏳ Searching..",
   "search.progress.step3": "⏳ Searching...",
   "search.empty": "😕 No matching jobs.",
+  "search.no_results": "😕 No vacancies for {role} in {location}. Use /settings to change parameters.",
+  "search.invalid_params": "❗️ Invalid search parameters: {err}",
+  "search.api_error": "❗️ Error contacting Adzuna API. Try later.",
 
   "results.title": "📊 Found",
   "results.kpv": ["Shown: {shown} of {total}"],
@@ -99,6 +102,8 @@
 
   "errors.number": "❗️ Invalid value. Expected a number.",
   "errors.empty": "❗️ Field cannot be empty.",
+  "errors.invalid_format": "❗️ Invalid format. Use letters, spaces and hyphen only.",
+  "errors.invalid_location": "❗️ Invalid location. Example: London or London, UK.",
   "errors.timeout": "⌚️ Timeout. Action cancelled.",
   "errors.ratelimit": "⏱ Too many requests. Try later.",
 
@@ -114,8 +119,6 @@
 
   "buttons.lang.ru": "🇷🇺 Russian",
   "buttons.lang.en": "🇬🇧 English",
-  "buttons.profile.fill": "📝 Set up filters",
-  "buttons.profile.skip": "⏭ Skip setup (not recommended)",
   "buttons.search.what": "✏️ what",
   "buttons.search.where": "📍 where",
   "buttons.search.distance": "📏 distance",

@@ -1,33 +1,45 @@
 from __future__ import annotations
 
 import re
+
+import httpx
 from aiogram import Router
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 
 from app.bot.fsm_states import SearchFSM
+from app.bot.keyboards import card_kb
 from app.config import AppConfig
-from app.integrations.adzuna_client import AdzunaClient
 from app.domain.models import Profile as DProfile, SearchParams
 from app.domain.pipeline import process
+from app.integrations.adzuna_client import AdzunaClient
 from app.repositories.profiles import ProfilesRepo
 from app.repositories.shortkeys import ShortKeysRepo
+from app.telemetry.logger import get_logger
 from .search import _format_card_message
-from app.bot.keyboards import card_kb
 
 router = Router()
-_TEXT_RE = re.compile(r"[\w\s-]{2,50}")
+
+log = get_logger("handlers.search_params")
+
+_KEYWORD_RE = re.compile(r"[\w\s-]{3,50}")
+_LOCATION_RE = re.compile(r"[\w\s,.-]{2,100}")
 
 
-def _valid(text: str) -> bool:
-    return bool(_TEXT_RE.fullmatch(text))
+def _valid_keyword(text: str) -> bool:
+    return bool(_KEYWORD_RE.fullmatch(text))
+
+
+def _valid_location(text: str) -> bool:
+    # location may contain city, region and commas
+    return bool(_LOCATION_RE.fullmatch(text))
 
 
 @router.message(SearchFSM.role)
 async def handle_role(m: Message, state: FSMContext, session, t):
     txt = (m.text or "").strip()
-    if not _valid(txt):
-        await m.answer(t("errors.empty"))
+    if not _valid_keyword(txt):
+        await m.answer(t("errors.invalid_format"))
         return
     data = await state.get_data()
     flow = data.get("flow")
@@ -68,8 +80,8 @@ async def handle_location(
     lang: str,
 ):
     txt = (m.text or "").strip()
-    if not _valid(txt):
-        await m.answer(t("errors.empty"))
+    if not _valid_location(txt):
+        await m.answer(t("errors.invalid_location"))
         return
     data = await state.get_data()
     flow = data.get("flow")
@@ -108,11 +120,25 @@ async def handle_location(
                 sort=params.sort,
                 max_days_old=params.max_days_old,
             )
-        except Exception:
-            results = []
+        except ValueError as e:
+            log.warning("search.invalid_params", err=str(e))
+            await m.answer(t("search.invalid_params").replace("{err}", str(e)))
+            await state.clear()
+            return
+        except httpx.HTTPError as e:
+            log.warning("search.api_error", err=str(e))
+            await m.answer(t("search.api_error"))
+            await state.clear()
+            return
+
         pr = process(results, profile, params, cfg)
         if not pr["cards"]:
-            await m.answer(t("search.empty"))
+            msg = (
+                t("search.no_results")
+                .replace("{role}", role)
+                .replace("{location}", txt)
+            )
+            await m.answer(msg)
         else:
             sk = ShortKeysRepo(store)
             for c in pr["cards"][:5]:
