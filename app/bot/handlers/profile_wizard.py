@@ -213,7 +213,8 @@ async def pf_pick_experience(cq: CallbackQuery, state: FSMContext, session, t, l
     await session.commit()
     # Clear temp
     await state.update_data(pf={})
-    # Replace the whole block with the main menu
+    # Replace the whole block with the main menu and explanation
     kb = with_lang_row(main_menu_kb(t), lang, t)
-    await cq.message.edit_text(t("menu.title"), reply_markup=kb)
+    text = f"{t('menu.title')}\n{t('menu.sub')}"
+    await cq.message.edit_text(text, reply_markup=kb)
     await cq.answer("")
