@@ -96,7 +96,16 @@ async def find_cmd(
     )
     params = SearchParams(max_days_old=cfg.search.max_days_old_default, sort="relevance")
     try:
-        results = await adzuna.search("gb", 1, cfg.search.results_per_page, what=profile.role, where=profile.locations[0] if profile.locations else None, sort=params.sort, max_days_old=params.max_days_old)
+        results = await adzuna.search(
+            "gb",
+            1,
+            cfg.search.results_per_page,
+            what=profile.role,
+            where=profile.locations[0] if profile.locations else None,
+            sort=params.sort,
+            max_days_old=params.max_days_old,
+            salary_min=profile.salary_min or None,
+        )
     except Exception:
         results = []
     pr = process(results, profile, params, cfg)
@@ -155,7 +164,16 @@ async def search_start(
     )
     params = SearchParams(max_days_old=cfg.search.max_days_old_default, sort="relevance")
     try:
-        results = await adzuna.search("gb", 1, cfg.search.results_per_page, what=profile.role, where=profile.locations[0] if profile.locations else None, sort=params.sort, max_days_old=params.max_days_old)
+        results = await adzuna.search(
+            "gb",
+            1,
+            cfg.search.results_per_page,
+            what=profile.role,
+            where=profile.locations[0] if profile.locations else None,
+            sort=params.sort,
+            max_days_old=params.max_days_old,
+            salary_min=profile.salary_min or None,
+        )
     except Exception:
         results = []
     pr = process(results, profile, params, cfg)
