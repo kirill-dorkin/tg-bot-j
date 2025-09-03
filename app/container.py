@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import Settings, load_app_config, AppConfig
-from app.infra.db import make_engine, make_session_factory
+from app.infra.db import Base, make_engine, make_session_factory
 from app.infra.db_models import UiSession
 from app.infra.redis import InMemoryStore, RedisStore, KeyValueStore
 from app.integrations.adzuna_client import AdzunaClient
@@ -50,7 +50,7 @@ async def build_container() -> Container:
     except Exception:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:", pool_pre_ping=True)
         async with engine.begin() as conn:
-            await conn.run_sync(UiSession.__table__.create)
+            await conn.run_sync(Base.metadata.create_all)
     session_factory = make_session_factory(engine)
 
     adzuna = AdzunaClient(settings, cfg)
