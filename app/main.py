@@ -12,6 +12,9 @@ from aiogram import Router
 from aiogram.exceptions import TelegramConflictError
 
 from app.bot.handlers import health as h_health
+from app.bot.handlers import actions as h_actions
+from app.bot.handlers import settings as h_settings
+from app.bot.handlers import search_params as h_search_params
 from app.bot import anchor as h_anchor
 from app.bot.middlewares import (
     I18nMiddleware,
@@ -93,6 +96,10 @@ async def main() -> None:
     router = Router()
     # Single-message UX router
     router.include_router(h_anchor.router)
+    # Extra handlers for settings, search flow, and card actions
+    router.include_router(h_actions.router)
+    router.include_router(h_settings.router)
+    router.include_router(h_search_params.router)
     # Health endpoint (optional)
     router.include_router(h_health.router)
     c.dp.include_router(router)
