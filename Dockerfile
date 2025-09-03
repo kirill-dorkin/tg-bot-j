@@ -3,9 +3,12 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    DEBIAN_FRONTEND=noninteractive
+    DEBIAN_FRONTEND=noninteractive \
+    PORT=8080
 
 WORKDIR /app
+
+EXPOSE 8080
 
 # System deps (quiet, noninteractive)
 RUN apt-get update -qq \
