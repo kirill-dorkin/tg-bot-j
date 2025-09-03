@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import sys
@@ -12,17 +13,41 @@ from aiogram.exceptions import TelegramConflictError
 
 from app.bot.handlers import health as h_health
 from app.bot import anchor as h_anchor
-from app.bot.middlewares import I18nMiddleware, RateLimitMiddleware, InjectSessionMiddleware, InjectDepsMiddleware
+from app.bot.middlewares import (
+    I18nMiddleware,
+    InjectDepsMiddleware,
+    InjectSessionMiddleware,
+    RateLimitMiddleware,
+)
 from app.container import build_container
+from app.infra.redis import KeyValueStore
+
+
+async def _keep_lock_alive(
+    store: KeyValueStore, key: str, value: str, ttl: int
+) -> None:
+    """Periodically refresh distributed lock to avoid expiration."""
+    while True:
+        await asyncio.sleep(ttl / 2)
+        try:
+            await store.setex(key, ttl, value)
+        except Exception:
+            # Best-effort: failure to refresh shouldn't crash the bot
+            pass
 
 
 async def main() -> None:
     c = await build_container()
     # Acquire a simple distributed lock to avoid running multiple instances
     lock_key = "bot:lock"
-    if not await c.store.set_nx(lock_key, str(os.getpid()), ex=60):
+    lock_ttl = 60
+    lock_value = str(os.getpid())
+    if not await c.store.set_nx(lock_key, lock_value, ex=lock_ttl):
         print("Another bot instance is already running. Exiting.", file=sys.stderr)
         return
+    lock_refresher = asyncio.create_task(
+        _keep_lock_alive(c.store, lock_key, lock_value, lock_ttl)
+    )
     # Ensure no leftover webhooks interfere with polling
     await c.bot.delete_webhook(drop_pending_updates=True)
     # Probe for existing long-polling sessions to avoid noisy errors
@@ -75,6 +100,9 @@ async def main() -> None:
     try:
         await c.dp.start_polling(c.bot)
     finally:
+        lock_refresher.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await lock_refresher
         await c.store.delete(lock_key)
 
 
