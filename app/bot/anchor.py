@@ -34,12 +34,12 @@ def _lang_row(lang: str) -> list[InlineKeyboardButton]:
     ]
 
 
-def _footer_row(lang: str) -> list[InlineKeyboardButton]:
-    return [
-        InlineKeyboardButton(text=_L(lang, "⬅️ Назад", "⬅️ Back"), callback_data="nav:back"),
-        InlineKeyboardButton(text=_L(lang, "🏠 Меню", "🏠 Menu"), callback_data="nav:menu"),
-        InlineKeyboardButton(text="🌐 RU | EN", callback_data="lang:toggle"),
-    ]
+def _footer_row(lang: str, allow_menu: bool = True) -> list[InlineKeyboardButton]:
+    row = [InlineKeyboardButton(text=_L(lang, "⬅️ Назад", "⬅️ Back"), callback_data="nav:back")]
+    if allow_menu:
+        row.append(InlineKeyboardButton(text=_L(lang, "🏠 Меню", "🏠 Menu"), callback_data="nav:menu"))
+    row.append(InlineKeyboardButton(text="🌐 RU | EN", callback_data="lang:toggle"))
+    return row
 
 
 def _field_label(lang: str, field: str) -> str:
@@ -136,10 +136,11 @@ async def on_lang_set(cq: CallbackQuery, session, store: KeyValueStore):
         "✅ Язык сохранён.",
         "✅ Language saved.",
     )
-    menu_text, kb = _render_menu(lang)
-    text = f"{saved}\n\n{menu_text}"
+    payload = {"filters": {}}
+    step_text, kb = _render_settings_step(lang, 1, payload)
+    text = f"{saved}\n\n{step_text}"
     await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    await ui.set_state(cq.message.chat.id, cq.from_user.id, screen_state="menu", payload={})
+    await ui.set_state(cq.message.chat.id, cq.from_user.id, screen_state="settings_step_1", payload=payload)
     await session.commit()
     await cq.answer("")
 
@@ -259,7 +260,7 @@ def _render_settings_step(lang: str, step: int, payload: dict[str, Any]) -> tupl
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text=_L(lang, "✏️ Ввести", "✏️ Enter"), callback_data="settings:input:what")],
-                _footer_row(lang),
+                _footer_row(lang, allow_menu=False),
             ]
         )
         if f.get("what"):
@@ -269,7 +270,7 @@ def _render_settings_step(lang: str, step: int, payload: dict[str, Any]) -> tupl
                 f"⚙️ Settings · Step 1/5\nRole: {f['what']} ✅",
             )
             kb = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:2")], _footer_row(lang)]
+                inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:2")], _footer_row(lang, allow_menu=False)]
             )
         return txt, kb
     if step == 2:
@@ -281,7 +282,7 @@ def _render_settings_step(lang: str, step: int, payload: dict[str, Any]) -> tupl
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text=_L(lang, "✏️ Ввести", "✏️ Enter"), callback_data="settings:input:where")],
-                _footer_row(lang),
+                _footer_row(lang, allow_menu=False),
             ]
         )
         if f.get("where"):
@@ -291,7 +292,7 @@ def _render_settings_step(lang: str, step: int, payload: dict[str, Any]) -> tupl
                 f"⚙️ Settings · Step 2/5\nLocation: {f['where']} ✅",
             )
             kb = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:3")], _footer_row(lang)]
+                inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:3")], _footer_row(lang, allow_menu=False)]
             )
         return txt, kb
     if step == 3:
@@ -303,7 +304,7 @@ def _render_settings_step(lang: str, step: int, payload: dict[str, Any]) -> tupl
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text=_L(lang, "✏️ Ввести", "✏️ Enter"), callback_data="settings:input:salary_min")],
-                _footer_row(lang),
+                _footer_row(lang, allow_menu=False),
             ]
         )
         if f.get("salary_min"):
@@ -313,7 +314,7 @@ def _render_settings_step(lang: str, step: int, payload: dict[str, Any]) -> tupl
                 f"⚙️ Settings · Step 3/5\nMin salary: {f['salary_min']} ✅",
             )
             kb = InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:4")], _footer_row(lang)]
+                inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:4")], _footer_row(lang, allow_menu=False)]
             )
         return txt, kb
     if step == 4:
@@ -331,7 +332,7 @@ def _render_settings_step(lang: str, step: int, payload: dict[str, Any]) -> tupl
                 )
             ],
             [InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:5")],
-            _footer_row(lang),
+            _footer_row(lang, allow_menu=False),
         ]
         return txt, InlineKeyboardMarkup(inline_keyboard=rows)
     # step 5 confirm
@@ -350,7 +351,7 @@ def _render_settings_step(lang: str, step: int, payload: dict[str, Any]) -> tupl
                 InlineKeyboardButton(text=_L(lang, "✅ Сохранить", "✅ Save"), callback_data="settings:save"),
                 InlineKeyboardButton(text=_L(lang, "✏️ Изменить", "✏️ Edit"), callback_data="settings:edit"),
             ],
-            _footer_row(lang),
+            _footer_row(lang, allow_menu=False),
         ]
     )
     return txt, kb
@@ -453,7 +454,7 @@ async def nav_back(cq: CallbackQuery, session, t, lang: str):
         "profile_step_2": "profile_step_1",
         "profile_step_3": "profile_step_2",
         "profile_step_4": "profile_step_3",
-        "settings_step_1": "menu",
+        "settings_step_1": "welcome",
         "settings_step_2": "settings_step_1",
         "settings_step_3": "settings_step_2",
         "settings_step_4": "settings_step_3",
