@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.config import AppConfig, Settings, load_app_config
 from app.infra.db import Base, make_engine, make_session_factory
 from app.infra.redis import InMemoryStore, KeyValueStore, RedisStore
+from app.infra.dispatcher import Dispatcher
 from app.integrations.adzuna_client import AdzunaClient
 from app.telemetry.logger import setup_logging
 
