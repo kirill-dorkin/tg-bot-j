@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     TZ: str = "UTC"
 
+    # In production the bot relies on Redis for distributed locks.
+    # Allow falling back to an in-memory store only when explicitly enabled
+    # (e.g. in tests or local development) to avoid multiple bot instances.
+    ALLOW_IN_MEMORY_STORE: bool = True
+
     CONFIG_PATH: str = "config.yaml"
 
 
