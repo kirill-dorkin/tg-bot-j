@@ -9,7 +9,6 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 
 from app.repositories.ui_sessions import UiSessionsRepo
 from app.repositories.users import UsersRepo
-from app.repositories.profiles import ProfilesRepo
 from app.repositories.favorites import FavoritesRepo
 from app.repositories.applied import AppliedRepo
 from app.repositories.shortkeys import ShortKeysRepo
@@ -17,6 +16,7 @@ from app.infra.redis import KeyValueStore
 from app.config import AppConfig
 from app.integrations.adzuna_client import AdzunaClient
 from app.domain.models import Profile as DProfile, SearchParams
+from httpx import HTTPStatusError
 from app.domain.pipeline import process
 
 
@@ -78,7 +78,7 @@ async def _edit_anchor(cq_or_msg: CallbackQuery | Message, anchor_id: int, text:
 def _menu_keyboard(lang: str) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = [
         [InlineKeyboardButton(text=_L(lang, "🔍 Поиск вакансий", "🔍 Job search"), callback_data="menu:search")],
-        [InlineKeyboardButton(text=_L(lang, "✏️ Редактировать профиль", "✏️ Edit profile"), callback_data="menu:profile")],
+        [InlineKeyboardButton(text=_L(lang, "⚙️ Настройки", "⚙️ Settings"), callback_data="menu:settings")],
         [InlineKeyboardButton(text=_L(lang, "ℹ️ О боте", "ℹ️ About bot"), callback_data="menu:about")],
         [InlineKeyboardButton(text=_L(lang, "🆘 Поддержка", "🆘 Support"), callback_data="menu:support")],
         _footer_row(lang),
@@ -120,7 +120,6 @@ async def on_lang_set(cq: CallbackQuery, session, store: KeyValueStore):
     saved = _L(lang, "✅ Язык сохранён.\n30 секунд — и начнём показывать релевантные вакансии.", "✅ Language saved.\nGive me 30 seconds to tailor results to you.")
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=_L(lang, "🚀 Быстрый поиск", "🚀 Quick search"), callback_data="search:quick")],
-        [InlineKeyboardButton(text=_L(lang, "📝 Заполнить профиль", "📝 Fill profile"), callback_data="menu:profile")],
         [InlineKeyboardButton(text=_L(lang, "⚙️ Настройки", "⚙️ Settings"), callback_data="menu:settings")],
         [InlineKeyboardButton(text=_L(lang, "ℹ️ О боте", "ℹ️ About"), callback_data="menu:about")],
         _footer_row(lang),
@@ -129,6 +128,20 @@ async def on_lang_set(cq: CallbackQuery, session, store: KeyValueStore):
     await ui.set_state(cq.message.chat.id, cq.from_user.id, screen_state="post_lang", payload={})
     await session.commit()
     await cq.answer("")
+
+
+def _render_settings(lang: str, payload: dict[str, Any]) -> tuple[str, InlineKeyboardMarkup]:
+    f = payload.get('filters', {})
+    what = f.get('what') or '-'
+    where = f.get('where') or '-'
+    salary_min = f.get('salary_min') or '-'
+    rows = [
+        [InlineKeyboardButton(text='✏️ what', callback_data='filters:edit:what'), InlineKeyboardButton(text='📍 where', callback_data='filters:edit:where')],
+        [InlineKeyboardButton(text='💰 salary_min', callback_data='filters:edit:salary_min'), InlineKeyboardButton(text='♻️ reset', callback_data='filters:reset')],
+        _footer_row(lang),
+    ]
+    txt = _L(lang, '⚙️ Настройки поиска', '⚙️ Search settings') + f"\nwhat: {what} | where: {where} | salary_min: {salary_min}"
+    return txt, InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 @router.callback_query(F.data == "lang:toggle")
@@ -146,65 +159,6 @@ async def on_lang_toggle(cq: CallbackQuery, session):
     await cq.answer("")
 
 
-def _render_profile_step(lang: str, step: int, payload: dict[str, Any]) -> tuple[str, InlineKeyboardMarkup]:
-    if step == 1:
-        txt = _L(lang, "👤 Профиль · Шаг 1/4\nВведите имя, как в откликах (можно латиницей).", "👤 Profile · Step 1/4\nEnter your name as used in applications.")
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=_L(lang, "✏️ Ввести имя", "✏️ Enter name"), callback_data="profile:input:name")],
-            _footer_row(lang),
-        ])
-        name = payload.get("profile", {}).get("name")
-        if name:
-            txt = _L(lang, f"👤 Профиль · Шаг 1/4\nИмя: {name} ✅", f"👤 Profile · Step 1/4\nName: {name} ✅")
-            kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="profile:next:2")], _footer_row(lang)])
-        return txt, kb
-    if step == 2:
-        txt = _L(lang, "👤 Профиль · Шаг 2/4\nВыберите сферу.", "👤 Profile · Step 2/4\nChoose your field.")
-        rows: list[list[InlineKeyboardButton]] = []
-        tiles = [
-            ("IT/Software", "IT/Software"), ("Marketing", "Marketing"), ("Design", "Design"), ("Sales", "Sales"), ("Finance", "Finance"),
-        ]
-        for i in range(0, len(tiles), 2):
-            pair = tiles[i:i+2]
-            rows.append([InlineKeyboardButton(text=lbl, callback_data=f"profile:set:industry:{code}") for code, lbl in pair])
-        rows.append([InlineKeyboardButton(text=_L(lang, "✏️ Другое", "✏️ Other"), callback_data="profile:input:industry")])
-        rows.append(_footer_row(lang))
-        industry = payload.get("profile", {}).get("industry")
-        if industry:
-            txt = _L(lang, f"👤 Профиль · Шаг 2/4\nСфера: {industry} ✅", f"👤 Profile · Step 2/4\nField: {industry} ✅")
-            rows = [[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="profile:next:3")], _footer_row(lang)]
-        return txt, InlineKeyboardMarkup(inline_keyboard=rows)
-    if step == 3:
-        txt = _L(lang, "👤 Профиль · Шаг 3/4\nВыберите тип занятости (можно несколько).", "👤 Profile · Step 3/4\nSelect employment type (multiple allowed).")
-        selected: set[str] = set(payload.get("profile", {}).get("employment", []))
-        def mark(code: str, label: str) -> str:
-            return ("🟩 " if code in selected else "") + label
-        rows = [
-            [InlineKeyboardButton(text=mark("full", "Full-time"), callback_data="profile:toggle:emp:full"), InlineKeyboardButton(text=mark("part", "Part-time"), callback_data="profile:toggle:emp:part")],
-            [InlineKeyboardButton(text=mark("contract", "Contract"), callback_data="profile:toggle:emp:contract"), InlineKeyboardButton(text=mark("intern", "Internship"), callback_data="profile:toggle:emp:intern")],
-        ]
-        if selected:
-            status = ", ".join([{
-                "full": "Full-time", "part": "Part-time", "contract": "Contract", "intern": "Internship"
-            }[s] for s in selected])
-            txt = _L(lang, f"👤 Профиль · Шаг 3/4\nВыбрано: {status}", f"👤 Profile · Step 3/4\nSelected: {status}")
-            rows.append([InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="profile:next:4")])
-        rows.append(_footer_row(lang))
-        return txt, InlineKeyboardMarkup(inline_keyboard=rows)
-    # step 4 confirm
-    p = payload.get("profile", {})
-    name = p.get("name", "—")
-    industry = p.get("industry", "—")
-    et = p.get("employment", [])
-    et_disp = ", ".join(et) if et else "—"
-    txt = _L(lang,
-              f"👤 Профиль · Шаг 4/4\nПроверьте данные:\n— Имя: {name}\n— Сфера: {industry}\n— Тип занятости: {et_disp}\n\nСохранить?",
-              f"👤 Profile · Step 4/4\nReview details:\n— Name: {name}\n— Field: {industry}\n— Employment: {et_disp}\n\nSave?")
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=_L(lang, "✅ Сохранить", "✅ Save"), callback_data="profile:save"), InlineKeyboardButton(text=_L(lang, "✏️ Изменить", "✏️ Edit"), callback_data="profile:edit")],
-        _footer_row(lang),
-    ])
-    return txt, kb
 
 
 def _render_filters(lang: str, payload: dict[str, Any]) -> tuple[str, InlineKeyboardMarkup]:
@@ -255,28 +209,22 @@ def _render_screen(lang: str, state: str, payload: dict[str, Any]) -> tuple[str,
         return _render_welcome(lang)
     if state == "menu":
         return _render_menu(lang)
-    if state == "profile_step_1":
-        return _render_profile_step(lang, 1, payload)
-    if state == "profile_step_2":
-        return _render_profile_step(lang, 2, payload)
-    if state == "profile_step_3":
-        return _render_profile_step(lang, 3, payload)
-    if state == "profile_step_4":
-        return _render_profile_step(lang, 4, payload)
+    if state == "settings":
+        return _render_settings(lang, payload)
     if state == "search_filters":
         return _render_filters(lang, payload)
     if state == "search_card":
         cards = payload.get("cards", [])
         idx = int(payload.get("cursor", 0))
         if not cards:
-            empty = _L(lang, "😕 Подходящих вакансий нет. Попробуйте снять часть фильтров или разрешить Remote.", "😕 No matching jobs. Try relaxing filters or enabling Remote.")
+            msg = payload.get("error") or _L(lang, "😕 Подходящих вакансий нет. Попробуйте снять часть фильтров или разрешить Remote.", "😕 No matching jobs. Try relaxing filters or enabling Remote.")
             kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "🧹 Сброс фильтров", "🧹 Reset filters"), callback_data="filters:reset")], [InlineKeyboardButton(text=_L(lang, "🌐 Remote: Вкл", "🌐 Remote: On"), callback_data="filters:force_remote")], _footer_row(lang)])
-            return empty, kb
+            return msg, kb
         return _render_card(lang, cards[idx], payload)
     if state == "about":
         txt = _L(lang,
-                 "ℹ️ О боте\nЯ показываю вакансии из Adzuna, убираю шум и сортирую по релевантности. Профиль и фильтры можно менять в любой момент. Ничего лишнего — сразу ссылка на отклик.",
-                 "ℹ️ About\nI fetch jobs from Adzuna, remove noise, and rank results by relevance. Update your profile and filters anytime. No fluff — direct apply link.")
+                 "ℹ️ О боте\nЯ показываю вакансии из Adzuna, убираю шум и сортирую по релевантности. Фильтры можно менять в любой момент. Ничего лишнего — сразу ссылка на отклик.",
+                 "ℹ️ About\nI fetch jobs from Adzuna, remove noise, and rank results by relevance. Update filters anytime. No fluff — direct apply link.")
         return txt, InlineKeyboardMarkup(inline_keyboard=[_footer_row(lang)])
     if state == "support":
         txt = _L(lang, "🆘 Поддержка\nОпишите вопрос одной строкой или откройте чат поддержки.", "🆘 Support\nDescribe your issue briefly or open support chat.")
@@ -307,14 +255,12 @@ async def nav_back(cq: CallbackQuery, session, t, lang: str):
     state = row.screen_state
     payload = row.payload or {}
     back_map = {
-        "profile_step_2": "profile_step_1",
-        "profile_step_3": "profile_step_2",
-        "profile_step_4": "profile_step_3",
         "search_filters": "menu",
         "search_card": "search_filters",
         "about": "menu",
         "support": "menu",
         "welcome": "welcome",
+        "settings": "menu",
     }
     new_state = back_map.get(state, "menu")
     await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state=new_state, payload=payload)
@@ -347,9 +293,10 @@ async def menu_support(cq: CallbackQuery, session, t, lang: str):
 @router.callback_query(F.data == "menu:settings")
 async def menu_settings(cq: CallbackQuery, session, t, lang: str):
     ui = UiSessionsRepo(session)
-    row = await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="menu")
-    # For now, go back to menu as placeholder
-    text, kb = _render_menu(lang)
+    row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
+    payload = row.payload or {"filters": {}}
+    await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="settings", payload=payload)
+    text, kb = _render_settings(lang, payload)
     await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
     await session.commit()
     await cq.answer("")
@@ -358,21 +305,12 @@ async def menu_settings(cq: CallbackQuery, session, t, lang: str):
 @router.callback_query(F.data == "menu:search")
 @router.callback_query(F.data == "search:quick")
 async def open_filters(cq: CallbackQuery, session, t, lang: str):
-    # Prefill from profile when available
-    prof = await ProfilesRepo(session).get(cq.from_user.id)
-    filters = {
-        "what": (prof.role if prof and prof.role else None),
-        "where": (prof.locations[0] if prof and prof.locations else None),
-        "salary_min": (prof.salary_min if prof and prof.salary_min else None),
-        "remote": bool(prof and ((prof.formats and ("remote" in prof.formats)) or (prof.locations and any(l.lower()=="remote" for l in prof.locations)))) ,
-        "employment": (prof.employment_types if prof and prof.employment_types else []),
-        "days": 7,
-    }
-    payload = {"filters": filters}
     ui = UiSessionsRepo(session)
+    payload = {"filters": {}, "input_mode": "filters:what"}
     row = await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
-    text, kb = _render_filters(lang, payload)
-    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
+    prompt = _L(lang, "Введите ключевые слова для поиска", "Enter job keywords")
+    kb = InlineKeyboardMarkup(inline_keyboard=[_footer_row(lang)])
+    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, prompt, kb)
     await session.commit()
     await cq.answer("")
 
@@ -389,8 +327,9 @@ async def filters_toggle(cq: CallbackQuery, session, t, lang: str):
         f["remote"] = not bool(f.get("remote"))
     if field == "force_remote":
         f["remote"] = True
-    await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
-    text, kb = _render_filters(lang, payload)
+    state = row.screen_state or "search_filters"
+    await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state=state, payload=payload)
+    text, kb = _render_screen(lang, state, payload)
     await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
     await session.commit()
     await cq.answer("")
@@ -400,8 +339,10 @@ async def filters_toggle(cq: CallbackQuery, session, t, lang: str):
 async def filters_reset(cq: CallbackQuery, session, t, lang: str):
     payload = {"filters": {"days": 7, "remote": False, "employment": []}}
     ui = UiSessionsRepo(session)
-    row = await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
-    text, kb = _render_filters(lang, payload)
+    row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
+    state = row.screen_state or "search_filters"
+    await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state=state, payload=payload)
+    text, kb = _render_screen(lang, state, payload)
     await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
     await session.commit()
     await cq.answer("")
@@ -415,9 +356,10 @@ async def filters_edit(cq: CallbackQuery, session, t, lang: str):
     row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
     payload = row.payload or {"filters": {}}
     payload["input_mode"] = f"filters:{field}"
-    await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
+    state = row.screen_state or "search_filters"
+    await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state=state, payload=payload)
     hint = _L(lang, f"Введите значение для {field}", f"Enter value for {field}")
-    text, kb = _render_filters(lang, payload)
+    text, kb = _render_screen(lang, state, payload)
     text = f"{text}\n\n{hint}"
     await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
     await session.commit()
@@ -436,115 +378,34 @@ async def on_free_text(m: Message, session, t, lang: str):
     if input_mode.startswith("filters:"):
         _, field = input_mode.split(":", 1)
         f = payload.setdefault("filters", {})
-        if field == "salary_min" or field == "days":
+        txt = m.text.strip()
+        if field in {"salary_min", "days"}:
             try:
-                f[field] = int(m.text.strip())
+                f[field] = int(txt)
             except Exception:
-                # keep as is
-                pass
+                await m.reply(_L(lang, "Введите число", "Enter a number"))
+                return
         else:
-            f[field] = m.text.strip()
+            if len(txt) < 2 or len(txt) > 50 or not all(ch.isalnum() or ch.isspace() for ch in txt):
+                await m.reply(_L(lang, "Некорректный ввод", "Invalid input"))
+                return
+            f[field] = txt
         payload.pop("input_mode", None)
-        await ui.upsert(m.chat.id, m.from_user.id, screen_state="search_filters", payload=payload)
-        text, kb = _render_filters(lang, payload)
+        state = row.screen_state or "search_filters"
+        if field == "what" and not f.get("where"):
+            payload["input_mode"] = "filters:where"
+            await ui.upsert(m.chat.id, m.from_user.id, screen_state=state, payload=payload)
+            prompt = _L(lang, "Укажите локацию", "Enter location")
+            kb = InlineKeyboardMarkup(inline_keyboard=[_footer_row(lang)])
+            await _edit_anchor(m, row.anchor_message_id or m.message_id, prompt, kb)
+            await session.commit()
+            return
+        await ui.upsert(m.chat.id, m.from_user.id, screen_state=state, payload=payload)
+        text, kb = _render_screen(lang, state, payload)
         await _edit_anchor(m, row.anchor_message_id or m.message_id, text, kb)
         await session.commit()
         return
-    if input_mode == "profile:name":
-        p = payload.setdefault("profile", {})
-        p["name"] = m.text.strip()
-        payload.pop("input_mode", None)
-        await ui.upsert(m.chat.id, m.from_user.id, screen_state="profile_step_1", payload=payload)
-        text, kb = _render_profile_step(lang, 1, payload)
-        await _edit_anchor(m, row.anchor_message_id or m.message_id, text, kb)
-        await session.commit()
-        return
-    if input_mode == "profile:industry":
-        p = payload.setdefault("profile", {})
-        p["industry"] = m.text.strip()
-        payload.pop("input_mode", None)
-        await ui.upsert(m.chat.id, m.from_user.id, screen_state="profile_step_2", payload=payload)
-        text, kb = _render_profile_step(lang, 2, payload)
-        await _edit_anchor(m, row.anchor_message_id or m.message_id, text, kb)
-        await session.commit()
 
-
-@router.callback_query(F.data.startswith("profile:"))
-async def profile_actions(cq: CallbackQuery, session, t, lang: str):
-    parts = cq.data.split(":")
-    ui = UiSessionsRepo(session)
-    row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
-    payload = row.payload or {}
-    p = payload.setdefault("profile", {})
-    if parts[1] == "input" and parts[2] == "name":
-        payload["input_mode"] = "profile:name"
-        await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="profile_step_1", payload=payload)
-        text, kb = _render_profile_step(lang, 1, payload)
-        text += "\n\n" + _L(lang, "Отправьте имя сообщением", "Send your name as a message")
-        await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    elif parts[1] == "set" and parts[2] == "industry":
-        p["industry"] = parts[3]
-        await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="profile_step_2", payload=payload)
-        text, kb = _render_profile_step(lang, 2, payload)
-        await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    elif parts[1] == "input" and parts[2] == "industry":
-        payload["input_mode"] = "profile:industry"
-        await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="profile_step_2", payload=payload)
-        text, kb = _render_profile_step(lang, 2, payload)
-        text += "\n\n" + _L(lang, "Отправьте сферу сообщением", "Send field as a message")
-        await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    elif parts[1] == "toggle" and parts[2] == "emp":
-        code = parts[3]
-        sel = set(p.get("employment", []))
-        label_map = {"full": "Full-time", "part": "Part-time", "contract": "Contract", "intern": "Internship"}
-        label = label_map.get(code, code)
-        if label in sel:
-            sel.remove(label)
-        else:
-            sel.add(label)
-        p["employment"] = list(sel)
-        await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="profile_step_3", payload=payload)
-        text, kb = _render_profile_step(lang, 3, payload)
-        await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    elif parts[1] == "next":
-        step = int(parts[2])
-        st = f"profile_step_{step}"
-        await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state=st, payload=payload)
-        text, kb = _render_profile_step(lang, step, payload)
-        await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    elif parts[1] == "save":
-        # Persist profile
-        name = p.get("name") or ""
-        industry = p.get("industry") or ""
-        employment = p.get("employment", [])
-        await UsersRepo(session).set_full_name(cq.from_user.id, name)
-        await ProfilesRepo(session).upsert(
-            user_id=cq.from_user.id,
-            role=industry,
-            employment_types=employment,
-            skills=[], locations=[], salary_min=0, salary_max=None, formats=[], experience_yrs=0,
-        )
-        # Clear temp and go to menu
-        payload.pop("profile", None)
-        await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="menu", payload=payload)
-        text, kb = _render_menu(lang)
-        await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, _L(lang, "✅ Профиль сохранён.\n\n" + text, "✅ Profile saved.\n\n" + text), kb)
-    elif parts[1] == "edit":
-        await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="profile_step_1", payload=payload)
-        text, kb = _render_profile_step(lang, 1, payload)
-        await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    await session.commit()
-    await cq.answer("")
-
-
-@router.callback_query(F.data == "menu:profile")
-async def menu_profile(cq: CallbackQuery, session, t, lang: str):
-    ui = UiSessionsRepo(session)
-    row = await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="profile_step_1", payload={"profile": {}})
-    text, kb = _render_profile_step(lang, 1, row.payload or {})
-    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    await session.commit()
-    await cq.answer("")
 
 
 @router.callback_query(F.data == "search:show")
@@ -558,21 +419,35 @@ async def search_show(cq: CallbackQuery, session, cfg: AppConfig, adzuna: Adzuna
         await _edit_anchor(cq, anchor_id, step)
         await asyncio.sleep(0.3)
     # Run search
-    prof = await ProfilesRepo(session).get(cq.from_user.id)
+    f = payload.get("filters", {})
     profile = DProfile(
-        role=(payload.get("filters", {}).get("what") or (prof.role if prof else "")),
-        skills=prof.skills if prof and prof.skills else [],
-        locations=prof.locations if prof and prof.locations else [],
-        salary_min=int(payload.get("filters", {}).get("salary_min") or (prof.salary_min if prof else 0) or 0),
-        salary_max=prof.salary_max if prof else None,
-        formats=prof.formats if prof and prof.formats else [],
-        experience_yrs=prof.experience_yrs if prof and prof.experience_yrs else 0,
+        role=f.get("what") or "",
+        skills=[],
+        locations=[f.get("where")] if f.get("where") else [],
+        salary_min=int(f.get("salary_min") or 0),
+        salary_max=None,
+        formats=[],
+        experience_yrs=0,
     )
-    params = SearchParams(max_days_old=int(payload.get("filters", {}).get("days") or cfg.search.max_days_old_default), sort="relevance")
-    try:
-        results = await adzuna.search("gb", 1, cfg.search.results_per_page, what=profile.role or None, where=(payload.get("filters", {}).get("where") or None), sort=params.sort, max_days_old=params.max_days_old)
-    except Exception:
+    params = SearchParams(max_days_old=int(f.get("days") or cfg.search.max_days_old_default), sort="relevance")
+    if not f.get("what") or not f.get("where"):
+        payload["error"] = _L(lang, "Укажите ключевые слова и локацию", "Provide keywords and location")
         results = []
+    else:
+        try:
+            results = await adzuna.search("gb", 1, cfg.search.results_per_page, what=f.get("what"), where=f.get("where"), sort=params.sort, max_days_old=params.max_days_old)
+        except HTTPStatusError as e:
+            status = e.response.status_code
+            if status in (401, 403):
+                payload["error"] = _L(lang, "Ошибка API ключей", "API key error")
+            elif status == 400:
+                payload["error"] = _L(lang, "Неверные параметры поиска", "Invalid search parameters")
+            else:
+                payload["error"] = _L(lang, "Ошибка поиска вакансий", "Job search error")
+            results = []
+        except Exception:
+            payload["error"] = _L(lang, "Ошибка поиска", "Search error")
+            results = []
     pr = process(results, profile, params, cfg)
     cards = pr["cards"][:5]
     payload["cards"] = cards
