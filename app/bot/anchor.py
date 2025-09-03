@@ -470,6 +470,8 @@ async def filters_edit(cq: CallbackQuery, session, t, lang: str):
     payload = row.payload or {"filters": {}}
     payload["input_mode"] = f"filters:{field}"
     await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
+    # Commit before prompting to avoid losing input if user replies quickly
+    await session.commit()
     hint = _L(
         lang,
         f"Введите значение для {_field_label('ru', field)}",
@@ -541,6 +543,8 @@ async def profile_actions(cq: CallbackQuery, session, t, lang: str):
     if parts[1] == "input" and parts[2] == "name":
         payload["input_mode"] = "profile:name"
         await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="profile_step_1", payload=payload)
+        # Commit early so text input after prompt is captured reliably
+        await session.commit()
         text, kb = _render_profile_step(lang, 1, payload)
         text += "\n\n" + _L(lang, "Отправьте имя сообщением", "Send your name as a message")
         await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
@@ -552,6 +556,7 @@ async def profile_actions(cq: CallbackQuery, session, t, lang: str):
     elif parts[1] == "input" and parts[2] == "industry":
         payload["input_mode"] = "profile:industry"
         await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="profile_step_2", payload=payload)
+        await session.commit()
         text, kb = _render_profile_step(lang, 2, payload)
         text += "\n\n" + _L(lang, "Отправьте сферу сообщением", "Send field as a message")
         await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
