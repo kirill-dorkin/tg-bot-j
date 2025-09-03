@@ -173,7 +173,7 @@ def _render_profile_step(lang: str, step: int, payload: dict[str, Any]) -> tuple
             kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="profile:next:2")], _footer_row(lang)])
         return txt, kb
     if step == 2:
-        txt = _L(lang, "👤 Профиль · Шаг 2/4\nВыберите сферу.", "👤 Profile · Step 2/4\nChoose your field.")
+        txt = _L(lang, "👤 Профиль · Шаг 2/4\nУкажите профессиональную сферу.", "👤 Profile · Step 2/4\nSpecify your professional field.")
         rows: list[list[InlineKeyboardButton]] = []
         tiles = [
             ("IT/Software", "IT/Software"), ("Marketing", "Marketing"), ("Design", "Design"), ("Sales", "Sales"), ("Finance", "Finance"),
@@ -512,12 +512,18 @@ async def on_free_text(m: Message, session, t, lang: str):
         state = "search_filters"
         text, kb = _render_filters(lang, payload)
     elif input_mode == "profile:name":
+        if not m.text or not m.text.strip():
+            await m.answer(_L(lang, "Имя не должно быть пустым. Введите имя (можно латиницей) и отправьте его сообщением.", "Name cannot be empty. Enter your name and send it as a message."))
+            return
         p = payload.setdefault("profile", {})
         p["name"] = m.text.strip()
         payload.pop("input_mode", None)
         state = "profile_step_2"
         text, kb = _render_profile_step(lang, 2, payload)
     elif input_mode == "profile:industry":
+        if not m.text or not m.text.strip():
+            await m.answer(_L(lang, "Сфера не должна быть пустой. Укажите профессиональную сферу.", "Field cannot be empty. Specify your professional field."))
+            return
         p = payload.setdefault("profile", {})
         p["industry"] = m.text.strip()
         payload.pop("input_mode", None)
@@ -555,7 +561,7 @@ async def profile_actions(cq: CallbackQuery, session, t, lang: str):
         # Commit early so text input after prompt is captured reliably
         await session.commit()
         text, kb = _render_profile_step(lang, 1, payload)
-        text += "\n\n" + _L(lang, "Отправьте имя сообщением", "Send your name as a message")
+        text += "\n\n" + _L(lang, "Введите имя (можно латиницей) и отправьте его сообщением.", "Enter your name and send it as a message.")
         await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
     elif parts[1] == "set" and parts[2] == "industry":
         p["industry"] = parts[3]
@@ -567,7 +573,7 @@ async def profile_actions(cq: CallbackQuery, session, t, lang: str):
         await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="profile_step_2", payload=payload)
         await session.commit()
         text, kb = _render_profile_step(lang, 2, payload)
-        text += "\n\n" + _L(lang, "Отправьте сферу сообщением", "Send field as a message")
+        text += "\n\n" + _L(lang, "Укажите профессиональную сферу и отправьте её сообщением.", "Specify your professional field and send it as a message.")
         await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
     elif parts[1] == "toggle" and parts[2] == "emp":
         code = parts[3]
