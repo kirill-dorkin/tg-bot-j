@@ -63,6 +63,10 @@
   "card.line2": "📍 {city_region}   💰 {salary}   ⏱ {posted_human}",
   "card.summary": "{summary}",
   "card.apply_url": "{url}",
+  "card.salary_unknown": "З/п не указана",
+  "card.posted.today": "сегодня",
+  "card.posted.yesterday": "вчера",
+  "card.posted.days_ago": "{days} дн. назад",
   "card.actions": ["✅ Откликнуться", "⭐️ Сохранить", "🧭 Похожие", "🙈 Скрыть компанию", "🚩 Пожаловаться"],
 
   "actions.applied": "🔗 Ссылка на отклик:",

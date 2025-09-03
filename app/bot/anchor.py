@@ -232,8 +232,19 @@ def _render_card(lang: str, card: dict[str, str], payload: dict[str, Any]) -> tu
     title = card.get("title", "")
     parts = [p.strip() for p in (card.get("subtitle", "").split("•") if card.get("subtitle") else [])]
     city = parts[0] if len(parts) > 0 else _L(lang, "—", "—")
-    salary = parts[1] if len(parts) > 1 else _L(lang, "З/п не указана", "Not specified")
-    posted = parts[2] if len(parts) > 2 else _L(lang, "—", "—")
+    salary = parts[1] if len(parts) > 1 else ""
+    if not salary or salary == "З/п не указана":
+        salary = _L(lang, "З/п не указана", "Not specified")
+    posted_raw = parts[2] if len(parts) > 2 else ""
+    if posted_raw == "сегодня":
+        posted = _L(lang, "сегодня", "today")
+    elif posted_raw == "вчера":
+        posted = _L(lang, "вчера", "yesterday")
+    elif posted_raw.endswith(" дн. назад"):
+        days = posted_raw.split()[0]
+        posted = _L(lang, f"{days} дн. назад", f"{days}d ago")
+    else:
+        posted = posted_raw or _L(lang, "—", "—")
     summary = card.get("summary", "")
     text = f"💼 {title}\n📍 {city}   💰 {salary}   ⏱ {posted}\n🧩 {summary}"
     # Actions

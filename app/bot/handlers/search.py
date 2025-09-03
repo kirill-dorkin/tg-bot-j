@@ -17,18 +17,44 @@ router = Router()
 
 
 def _format_card_message(card: dict, t) -> str:
-    # Build 4-line card text with emojis
-    title = card.get("title", "")
+    """Render a vacancy card using i18n templates."""
+    raw_title = card.get("title", "")
+    title, company = raw_title, ""
+    if " — " in raw_title:
+        title, company = raw_title.split(" — ", 1)
+
     subtitle = card.get("subtitle", "")
     parts = [p.strip() for p in subtitle.split("•")] if subtitle else []
     city = parts[0] if len(parts) > 0 else "—"
-    salary = parts[1] if len(parts) > 1 else "З/п не указана"
-    posted = parts[2] if len(parts) > 2 else "—"
-    line1 = f"💼 {title}"
-    line2 = f"📍 {city}   💰 {salary}   ⏱ {posted}"
-    summary = card.get("summary", "")
-    url = card.get("apply_url", "")
-    return f"{line1}\n{line2}\n🧩 {summary}\n🔗 {url}"
+    salary = parts[1] if len(parts) > 1 else ""
+    if not salary or salary == "З/п не указана":
+        salary = t("card.salary_unknown")
+    posted_raw = parts[2] if len(parts) > 2 else ""
+    if posted_raw == "сегодня":
+        posted = t("card.posted.today")
+    elif posted_raw == "вчера":
+        posted = t("card.posted.yesterday")
+    elif posted_raw.endswith(" дн. назад"):
+        days = posted_raw.split()[0]
+        posted = (t("card.posted.days_ago") or "{days} дн. назад").replace("{days}", days)
+    else:
+        posted = posted_raw or "—"
+
+    line1_tpl = t("card.line1") if callable(getattr(t, "__call__", None)) else "💼 {title} — {company}"
+    line2_tpl = t("card.line2") if callable(getattr(t, "__call__", None)) else "📍 {city_region}   💰 {salary}   ⏱ {posted_human}"
+    summary_tpl = t("card.summary") if callable(getattr(t, "__call__", None)) else "🧩 {summary}"
+
+    line1 = line1_tpl.replace("{title}", title).replace("{company}", company)
+    line2 = (
+        line2_tpl
+        .replace("{city_region}", city)
+        .replace("{city}", city)
+        .replace("{salary}", salary)
+        .replace("{posted_human}", posted)
+        .replace("{posted}", posted)
+    )
+    summary_line = summary_tpl.replace("{summary}", card.get("summary", ""))
+    return "\n".join([line1, line2, summary_line])
 
 
 @router.message(F.text == "/find")
