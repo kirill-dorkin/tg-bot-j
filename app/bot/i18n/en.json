@@ -5,7 +5,7 @@
     "Search, profile, subscriptions, favorites.",
     "Vacancies, parameters, mailing, saved."
   ],
-  "menu.actions": ["🔎 Search", "👤 Profile", "📬 Subscriptions", "⭐️ Favorites", "⚙️ Settings", "❓ Help"],
+  "menu.actions": ["1. Quick search", "2. Settings", "3. About", "4. Support"],
 
   "start.welcome": "👋 Hi! I’ll quickly find fresh jobs that match your profile.\n\n🌍 Choose interface language:",
   "start.choose_lang": "🌍 Choose interface language:",
@@ -106,6 +106,10 @@
   "help.title": "❓ Help",
   "help.commands": "/find /profile /subscribe /favorites /settings /help",
   "help.source": "Source: Adzuna. Algorithm: filter → dedup → scoring.",
+
+  "about.title": "ℹ️ About",
+  "about.text": "This bot searches jobs via Adzuna.",
+  "support.text": "Support: @microstudio_official",
 
   "health.ok": "✅ OK",
 

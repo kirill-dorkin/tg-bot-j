@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
 import asyncio
 
 from app.config import AppConfig
@@ -10,7 +11,14 @@ from app.domain.pipeline import process
 from app.integrations.adzuna_client import AdzunaClient
 from app.repositories.profiles import ProfilesRepo
 from app.repositories.shortkeys import ShortKeysRepo
-from app.bot.keyboards import card_kb, search_filters_kb, empty_search_suggestions_kb, main_menu_kb, with_lang_row
+from app.bot.keyboards import (
+    card_kb,
+    search_filters_kb,
+    empty_search_suggestions_kb,
+    main_menu_kb,
+    with_lang_row,
+    pf_role_kb,
+)
 
 
 router = Router()
@@ -58,7 +66,16 @@ def _format_card_message(card: dict, t) -> str:
 
 
 @router.message(F.text == "/find")
-async def find_cmd(m: Message, session, cfg: AppConfig, adzuna: AdzunaClient, store, t, lang: str):
+async def find_cmd(
+    m: Message,
+    session,
+    cfg: AppConfig,
+    adzuna: AdzunaClient,
+    store,
+    t,
+    lang: str,
+    state: FSMContext,
+):
     # Progress: three short steps
     await m.answer(t("search.progress.step1"))
     await asyncio.sleep(0.35)
@@ -67,8 +84,10 @@ async def find_cmd(m: Message, session, cfg: AppConfig, adzuna: AdzunaClient, st
     await m.answer(t("search.progress.step3"))
     prof = await ProfilesRepo(session).get(m.from_user.id)
     if not prof:
-        # No profile yet: show short hint per spec
-        await m.answer(t("search.sub"))
+        # Launch profile wizard if no settings
+        await state.update_data(pf={"skills": [], "locations": [], "formats": []})
+        text = f"{t('profile.form.title')}\n\n{t('profile.form.role')}"
+        await m.answer(text, reply_markup=pf_role_kb(lang))
         return
     profile = DProfile(
         role=prof.role or "",
@@ -129,7 +148,16 @@ async def search_back(cq: CallbackQuery, t, lang: str):
 
 
 @router.callback_query(F.data == "search:start")
-async def search_start(cq: CallbackQuery, session, cfg: AppConfig, adzuna: AdzunaClient, store, t, lang: str):
+async def search_start(
+    cq: CallbackQuery,
+    session,
+    cfg: AppConfig,
+    adzuna: AdzunaClient,
+    store,
+    t,
+    lang: str,
+    state: FSMContext | None = None,
+):
     # Trigger same flow as /find
     await cq.message.answer(t("search.progress.step1"))
     await asyncio.sleep(0.35)
@@ -138,7 +166,12 @@ async def search_start(cq: CallbackQuery, session, cfg: AppConfig, adzuna: Adzun
     await cq.message.answer(t("search.progress.step3"))
     prof = await ProfilesRepo(session).get(cq.from_user.id)
     if not prof:
-        await cq.message.answer(t("search.sub"))
+        if state:
+            await state.update_data(pf={"skills": [], "locations": [], "formats": []})
+            text = f"{t('profile.form.title')}\n\n{t('profile.form.role')}"
+            await cq.message.answer(text, reply_markup=pf_role_kb(lang))
+        else:
+            await cq.message.answer(t("search.sub"))
         await cq.answer("")
         return
     profile = DProfile(

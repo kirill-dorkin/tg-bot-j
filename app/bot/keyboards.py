@@ -23,14 +23,15 @@ def lang_kb(t=None) -> InlineKeyboardMarkup:
 
 
 def main_menu_kb(t) -> InlineKeyboardMarkup:
+    """Static main menu shown after bot start."""
     labels = t("menu.actions") if callable(getattr(t, "__call__", None)) else []
     if not labels:
-        labels = ["🔎 Искать", "👤 Профиль", "📬 Подписки", "⭐️ Избранное", "⚙️ Настройки", "❓ Помощь"]
-    # layout: [Search, Profile] / [Subscriptions, Favorites] / [Settings, Help] / [RU|EN]
+        labels = ["1. Быстрый поиск", "2. Настройки", "3. О боте", "4. Поддержка"]
     kb: list[list[InlineKeyboardButton]] = [
-        [InlineKeyboardButton(text=labels[0], callback_data="menu:find"), InlineKeyboardButton(text=labels[1], callback_data="menu:profile")],
-        [InlineKeyboardButton(text=labels[2], callback_data="menu:subs"), InlineKeyboardButton(text=labels[3], callback_data="menu:fav")],
-        [InlineKeyboardButton(text=labels[4], callback_data="menu:settings"), InlineKeyboardButton(text=labels[5], callback_data="menu:help")],
+        [InlineKeyboardButton(text=labels[0], callback_data="menu:quick")],
+        [InlineKeyboardButton(text=labels[1], callback_data="menu:settings")],
+        [InlineKeyboardButton(text=labels[2], callback_data="menu:about")],
+        [InlineKeyboardButton(text=labels[3], callback_data="menu:support")],
     ]
     # lang row appended by caller if needed
     return InlineKeyboardMarkup(inline_keyboard=kb)
