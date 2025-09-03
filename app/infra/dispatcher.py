@@ -1,17 +1,22 @@
 from __future__ import annotations
 
-from typing import AsyncGenerator, List, Optional
+import asyncio
+from collections.abc import AsyncGenerator
 
 from aiogram import loggers
 from aiogram.client.bot import Bot
 from aiogram.dispatcher.dispatcher import (
     DEFAULT_BACKOFF_CONFIG,
+)
+from aiogram.dispatcher.dispatcher import (
     Dispatcher as AiogramDispatcher,
 )
 from aiogram.exceptions import TelegramConflictError
 from aiogram.methods import GetUpdates
 from aiogram.types import Update
 from aiogram.utils.backoff import Backoff, BackoffConfig
+
+_orig_sleep = asyncio.sleep
 
 
 class Dispatcher(AiogramDispatcher):
@@ -23,7 +28,7 @@ class Dispatcher(AiogramDispatcher):
         bot: Bot,
         polling_timeout: int = 30,
         backoff_config: BackoffConfig = DEFAULT_BACKOFF_CONFIG,
-        allowed_updates: Optional[List[str]] = None,
+        allowed_updates: list[str] | None = None,
     ) -> AsyncGenerator[Update, None]:
         backoff = Backoff(config=backoff_config)
         get_updates = GetUpdates(timeout=polling_timeout, allowed_updates=allowed_updates)
@@ -39,8 +44,11 @@ class Dispatcher(AiogramDispatcher):
                     "Polling conflict detected; retrying... (bot id = %d)",
                     bot.id,
                 )
-                await backoff.asleep()
+                await asyncio.sleep(next(backoff))
+                await _orig_sleep(0)
                 continue
+            except asyncio.CancelledError:
+                raise
             except Exception as e:  # pragma: no cover - network failures
                 failed = True
                 loggers.dispatcher.error(
@@ -52,7 +60,8 @@ class Dispatcher(AiogramDispatcher):
                     backoff.counter,
                     bot.id,
                 )
-                await backoff.asleep()
+                await asyncio.sleep(next(backoff))
+                await _orig_sleep(0)
                 continue
             if failed:
                 loggers.dispatcher.info(
