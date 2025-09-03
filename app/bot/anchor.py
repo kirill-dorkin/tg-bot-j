@@ -92,7 +92,7 @@ async def _edit_anchor(cq_or_msg: CallbackQuery | Message, anchor_id: int, text:
 def _menu_keyboard(lang: str) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = [
         [InlineKeyboardButton(text=_L(lang, "🔍 Поиск вакансий", "🔍 Job search"), callback_data="menu:search")],
-        [InlineKeyboardButton(text=_L(lang, "✏️ Редактировать профиль", "✏️ Edit profile"), callback_data="menu:profile")],
+        [InlineKeyboardButton(text=_L(lang, "⚙️ Настроить фильтры", "⚙️ Set filters"), callback_data="menu:profile")],
         [InlineKeyboardButton(text=_L(lang, "ℹ️ О боте", "ℹ️ About bot"), callback_data="menu:about")],
         [InlineKeyboardButton(text=_L(lang, "🆘 Поддержка", "🆘 Support"), callback_data="menu:support")],
         _footer_row(lang),
