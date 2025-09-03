@@ -54,4 +54,19 @@ def with_lang_row(markup: InlineKeyboardMarkup, lang: str, t=None) -> InlineKeyb
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def settings_kb(t) -> InlineKeyboardMarkup:
+    """Inline keyboard for settings menu."""
+    labels = (
+        t("buttons.settings.role") if callable(getattr(t, "__call__", None)) else "✏️ Роль",
+        t("buttons.settings.location") if callable(getattr(t, "__call__", None)) else "📍 Локация",
+        t("buttons.settings.reset") if callable(getattr(t, "__call__", None)) else "♻️ Сброс",
+    )
+    kb = [
+        [InlineKeyboardButton(text=labels[0], callback_data="settings:role")],
+        [InlineKeyboardButton(text=labels[1], callback_data="settings:location")],
+        [InlineKeyboardButton(text=labels[2], callback_data="settings:reset")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+
 # Profile wizard keyboards removed as search now collects data sequentially

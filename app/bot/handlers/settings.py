@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 
 from app.bot.fsm_states import SearchFSM
+from app.bot.keyboards import settings_kb
 from app.repositories.profiles import ProfilesRepo
 
 
@@ -17,31 +18,32 @@ async def settings_cmd(m: Message, session, t):
     loc = prof.locations[0] if prof and prof.locations else "—"
     text = (
         f"{t('settings.title')}\n{t('settings.sub')}\n———\n"
-        f"Role: {role}\nLocation: {loc}\n\n"
-        "Use /set_role, /set_location or /reset_settings"
+        f"Role: {role}\nLocation: {loc}"
     )
-    await m.answer(text)
+    await m.answer(text, reply_markup=settings_kb(t))
 
 
-@router.message(F.text == "/set_role")
-async def settings_set_role(m: Message, state, t):
+@router.callback_query(F.data == "settings:role")
+async def settings_set_role(cq: CallbackQuery, state, t):
     await state.set_state(SearchFSM.role)
     await state.update_data(flow="edit_role")
-    await m.answer(t("profile.form.role"))
+    await cq.message.answer(t("profile.form.role"))
+    await cq.answer("")
 
 
-@router.message(F.text == "/set_location")
-async def settings_set_location(m: Message, state, t):
+@router.callback_query(F.data == "settings:location")
+async def settings_set_location(cq: CallbackQuery, state, t):
     await state.set_state(SearchFSM.location)
     await state.update_data(flow="edit_location")
-    await m.answer(t("profile.form.locations"))
+    await cq.message.answer(t("profile.form.locations"))
+    await cq.answer("")
 
 
-@router.message(F.text == "/reset_settings")
-async def settings_reset(m: Message, session, t):
+@router.callback_query(F.data == "settings:reset")
+async def settings_reset(cq: CallbackQuery, session, t):
     repo = ProfilesRepo(session)
     await repo.upsert(
-        user_id=m.from_user.id,
+        user_id=cq.from_user.id,
         role="",
         employment_types=None,
         skills=[],
@@ -52,4 +54,5 @@ async def settings_reset(m: Message, session, t):
         experience_yrs=0,
     )
     await session.commit()
-    await m.answer(t("profile.deleted"))
+    await cq.message.answer(t("profile.deleted"))
+    await cq.answer("")
