@@ -249,6 +249,114 @@ def _render_profile_step(lang: str, step: int, payload: dict[str, Any]) -> tuple
     return txt, kb
 
 
+def _render_settings_step(lang: str, step: int, payload: dict[str, Any]) -> tuple[str, InlineKeyboardMarkup]:
+    f = payload.setdefault("filters", {})
+    if step == 1:
+        txt = _L(
+            lang,
+            "⚙️ Настройки · Шаг 1/5\nВведите должность или ключевые слова.",
+            "⚙️ Settings · Step 1/5\nEnter job title or keywords.",
+        )
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=_L(lang, "✏️ Ввести", "✏️ Enter"), callback_data="settings:input:what")],
+                _footer_row(lang),
+            ]
+        )
+        if f.get("what"):
+            txt = _L(
+                lang,
+                f"⚙️ Настройки · Шаг 1/5\nДолжность: {f['what']} ✅",
+                f"⚙️ Settings · Step 1/5\nRole: {f['what']} ✅",
+            )
+            kb = InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:2")], _footer_row(lang)]
+            )
+        return txt, kb
+    if step == 2:
+        txt = _L(
+            lang,
+            "⚙️ Настройки · Шаг 2/5\nУкажите локацию поиска.",
+            "⚙️ Settings · Step 2/5\nSpecify search location.",
+        )
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=_L(lang, "✏️ Ввести", "✏️ Enter"), callback_data="settings:input:where")],
+                _footer_row(lang),
+            ]
+        )
+        if f.get("where"):
+            txt = _L(
+                lang,
+                f"⚙️ Настройки · Шаг 2/5\nЛокация: {f['where']} ✅",
+                f"⚙️ Settings · Step 2/5\nLocation: {f['where']} ✅",
+            )
+            kb = InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:3")], _footer_row(lang)]
+            )
+        return txt, kb
+    if step == 3:
+        txt = _L(
+            lang,
+            "⚙️ Настройки · Шаг 3/5\nУкажите минимальную зарплату.",
+            "⚙️ Settings · Step 3/5\nSet minimum salary.",
+        )
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=_L(lang, "✏️ Ввести", "✏️ Enter"), callback_data="settings:input:salary_min")],
+                _footer_row(lang),
+            ]
+        )
+        if f.get("salary_min"):
+            txt = _L(
+                lang,
+                f"⚙️ Настройки · Шаг 3/5\nМин. з/п: {f['salary_min']} ✅",
+                f"⚙️ Settings · Step 3/5\nMin salary: {f['salary_min']} ✅",
+            )
+            kb = InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:4")], _footer_row(lang)]
+            )
+        return txt, kb
+    if step == 4:
+        remote = bool(f.get("remote"))
+        txt = _L(
+            lang,
+            "⚙️ Настройки · Шаг 4/5\nРазрешить удалённую работу?",
+            "⚙️ Settings · Step 4/5\nAllow remote work?",
+        )
+        rows = [
+            [
+                InlineKeyboardButton(
+                    text=_L(lang, "Удалёнка: да" if remote else "Удалёнка: нет", "Remote: on" if remote else "Remote: off"),
+                    callback_data="settings:toggle:remote",
+                )
+            ],
+            [InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="settings:next:5")],
+            _footer_row(lang),
+        ]
+        return txt, InlineKeyboardMarkup(inline_keyboard=rows)
+    # step 5 confirm
+    what = f.get("what", "—")
+    where = f.get("where", "—")
+    salary = f.get("salary_min", "—")
+    remote = _L(lang, "да" if f.get("remote") else "нет", "yes" if f.get("remote") else "no")
+    txt = _L(
+        lang,
+        f"⚙️ Настройки · Шаг 5/5\nПроверьте данные:\n— Что: {what}\n— Где: {where}\n— Мин. з/п: {salary}\n— Удалённо: {remote}\n\nСохранить?",
+        f"⚙️ Settings · Step 5/5\nReview details:\n— What: {what}\n— Where: {where}\n— Min salary: {salary}\n— Remote: {remote}\n\nSave?",
+    )
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=_L(lang, "✅ Сохранить", "✅ Save"), callback_data="settings:save"),
+                InlineKeyboardButton(text=_L(lang, "✏️ Изменить", "✏️ Edit"), callback_data="settings:edit"),
+            ],
+            _footer_row(lang),
+        ]
+    )
+    return txt, kb
+
+
 def _render_filters(lang: str, payload: dict[str, Any]) -> tuple[str, InlineKeyboardMarkup]:
     f = payload.get("filters", {})
     what = f.get("what") or "-"
@@ -347,6 +455,9 @@ def _render_screen(lang: str, state: str, payload: dict[str, Any]) -> tuple[str,
         return _render_profile_step(lang, 3, payload)
     if state == "profile_step_4":
         return _render_profile_step(lang, 4, payload)
+    if state.startswith("settings_step_"):
+        step = int(state.split("_")[-1])
+        return _render_settings_step(lang, step, payload)
     if state == "search_filters":
         return _render_filters(lang, payload)
     if state == "search_card":
@@ -394,6 +505,11 @@ async def nav_back(cq: CallbackQuery, session, t, lang: str):
         "profile_step_2": "profile_step_1",
         "profile_step_3": "profile_step_2",
         "profile_step_4": "profile_step_3",
+        "settings_step_1": "menu",
+        "settings_step_2": "settings_step_1",
+        "settings_step_3": "settings_step_2",
+        "settings_step_4": "settings_step_3",
+        "settings_step_5": "settings_step_4",
         "search_filters": "menu",
         "search_card": "search_filters",
         "about": "menu",
@@ -430,35 +546,100 @@ async def menu_support(cq: CallbackQuery, session, t, lang: str):
 
 @router.callback_query(F.data == "menu:settings")
 async def menu_settings(cq: CallbackQuery, session, t, lang: str):
-    ui = UiSessionsRepo(session)
-    row = await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="menu")
-    # For now, go back to menu as placeholder
-    text, kb = _render_menu(lang)
-    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    await session.commit()
-    await cq.answer("")
-
-
-@router.callback_query(F.data == "menu:search")
-@router.callback_query(F.data == "search:quick")
-async def open_filters(cq: CallbackQuery, session, t, lang: str):
-    # Prefill from profile when available
+    # Prefill filters from profile data when available
     prof = await ProfilesRepo(session).get(cq.from_user.id)
     filters = {
         "what": (prof.role if prof and prof.role else None),
         "where": (prof.locations[0] if prof and prof.locations else None),
         "salary_min": (prof.salary_min if prof and prof.salary_min else None),
-        "remote": bool(prof and ((prof.formats and ("remote" in prof.formats)) or (prof.locations and any(l.lower()=="remote" for l in prof.locations)))) ,
-        "employment": (prof.employment_types if prof and prof.employment_types else []),
-        "days": 7,
+        "remote": bool(
+            prof
+            and (
+                (prof.formats and ("remote" in prof.formats))
+                or (prof.locations and any(l.lower() == "remote" for l in prof.locations))
+            )
+        ),
     }
     payload = {"filters": filters}
     ui = UiSessionsRepo(session)
-    row = await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
-    text, kb = _render_filters(lang, payload)
+    row = await ui.upsert(
+        cq.message.chat.id, cq.from_user.id, screen_state="settings_step_1", payload=payload
+    )
+    text, kb = _render_settings_step(lang, 1, payload)
     await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
     await session.commit()
     await cq.answer("")
+
+
+@router.callback_query(F.data.startswith("settings:next:"))
+async def settings_next(cq: CallbackQuery, session, t, lang: str):
+    step = int(cq.data.split(":")[2])
+    ui = UiSessionsRepo(session)
+    row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
+    payload = row.payload or {"filters": {}}
+    await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state=f"settings_step_{step}", payload=payload)
+    text, kb = _render_settings_step(lang, step, payload)
+    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
+    await session.commit()
+    await cq.answer("")
+
+
+@router.callback_query(F.data.startswith("settings:input:"))
+async def settings_input(cq: CallbackQuery, session, t, lang: str):
+    field = cq.data.split(":")[2]
+    ui = UiSessionsRepo(session)
+    row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
+    payload = row.payload or {"filters": {}}
+    payload["input_mode"] = f"settings:{field}"
+    await ui.upsert(cq.message.chat.id, cq.from_user.id, payload=payload)
+    await session.commit()
+    hints = {
+        "what": _L(lang, "Введите должность или ключевые слова", "Enter job title or keywords"),
+        "where": _L(lang, "Укажите локацию", "Specify location"),
+        "salary_min": _L(lang, "Введите минимальную зарплату", "Enter minimum salary"),
+    }
+    step = int(row.screen_state.split("_")[-1]) if row.screen_state and row.screen_state.startswith("settings_step_") else 1
+    text, kb = _render_settings_step(lang, step, payload)
+    text = f"{text}\n\n{hints.get(field, '')}"
+    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
+    await session.commit()
+    await cq.answer("")
+
+
+@router.callback_query(F.data == "settings:toggle:remote")
+async def settings_toggle_remote(cq: CallbackQuery, session, t, lang: str):
+    ui = UiSessionsRepo(session)
+    row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
+    payload = row.payload or {"filters": {}}
+    f = payload.setdefault("filters", {})
+    f["remote"] = not bool(f.get("remote"))
+    await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="settings_step_4", payload=payload)
+    text, kb = _render_settings_step(lang, 4, payload)
+    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
+    await session.commit()
+    await cq.answer("")
+
+
+@router.callback_query(F.data.in_({"settings:save", "settings:edit"}))
+async def settings_finalize(cq: CallbackQuery, session, t, lang: str):
+    ui = UiSessionsRepo(session)
+    row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
+    payload = row.payload or {"filters": {}}
+    if cq.data == "settings:edit":
+        await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="settings_step_1", payload=payload)
+        text, kb = _render_settings_step(lang, 1, payload)
+    else:
+        await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="menu", payload=payload)
+        text, kb = _render_menu(lang)
+        text = _L(lang, "✅ Настройки сохранены.\n\n" + text, "✅ Settings saved.\n\n" + text)
+    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
+    await session.commit()
+    await cq.answer("")
+
+
+@router.callback_query(F.data.in_({"menu:search", "search:quick"}))
+async def search_direct(cq: CallbackQuery, session, cfg: AppConfig, adzuna: AdzunaClient, store: KeyValueStore, t, lang: str):
+    await search_show(cq, session, cfg, adzuna, store, t, lang)
 
 
 # Filters interactions
@@ -548,6 +729,26 @@ async def on_free_text(m: Message, session, t, lang: str):
         payload.pop("input_mode", None)
         state = "search_filters"
         text, kb = _render_filters(lang, payload)
+    elif input_mode.startswith("settings:"):
+        _, field = input_mode.split(":", 1)
+        f = payload.setdefault("filters", {})
+        if field == "salary_min":
+            try:
+                f[field] = int(m.text.strip())
+            except Exception:
+                pass
+        else:
+            f[field] = m.text.strip()
+        payload.pop("input_mode", None)
+        cur_step = 1
+        if row.screen_state and row.screen_state.startswith("settings_step_"):
+            try:
+                cur_step = int(row.screen_state.split("_")[-1])
+            except Exception:
+                cur_step = 1
+        next_step = min(cur_step + 1, 5)
+        state = f"settings_step_{next_step}"
+        text, kb = _render_settings_step(lang, next_step, payload)
     elif input_mode == "profile:name":
         if not m.text or not m.text.strip():
             await m.answer(_L(lang, "Имя не должно быть пустым. Введите имя (можно латиницей) и отправьте его сообщением.", "Name cannot be empty. Enter your name and send it as a message."))
