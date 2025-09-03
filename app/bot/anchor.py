@@ -92,7 +92,7 @@ async def _edit_anchor(cq_or_msg: CallbackQuery | Message, anchor_id: int, text:
 def _menu_keyboard(lang: str) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = [
         [InlineKeyboardButton(text=_L(lang, "🔍 Поиск вакансий", "🔍 Job search"), callback_data="menu:search")],
-        [InlineKeyboardButton(text=_L(lang, "⚙️ Настроить фильтры", "⚙️ Set filters"), callback_data="menu:profile")],
+        [InlineKeyboardButton(text=_L(lang, "⚙️ Настроить фильтры", "⚙️ Set filters"), callback_data="menu:settings")],
         [InlineKeyboardButton(text=_L(lang, "ℹ️ О боте", "ℹ️ About bot"), callback_data="menu:about")],
         [InlineKeyboardButton(text=_L(lang, "🆘 Поддержка", "🆘 Support"), callback_data="menu:support")],
         _footer_row(lang),
@@ -133,8 +133,8 @@ async def on_lang_set(cq: CallbackQuery, session, store: KeyValueStore):
     # Show saved notice and main menu
     saved = _L(
         lang,
-        "✅ Язык сохранён.\n30 секунд — и начнём показывать релевантные вакансии.",
-        "✅ Language saved.\nGive me 30 seconds to tailor results to you.",
+        "✅ Язык сохранён.",
+        "✅ Language saved.",
     )
     menu_text, kb = _render_menu(lang)
     text = f"{saved}\n\n{menu_text}"
@@ -356,55 +356,6 @@ def _render_settings_step(lang: str, step: int, payload: dict[str, Any]) -> tupl
     return txt, kb
 
 
-def _render_filters(lang: str, payload: dict[str, Any]) -> tuple[str, InlineKeyboardMarkup]:
-    f = payload.get("filters", {})
-    what = f.get("what") or "-"
-    where = f.get("where") or "-"
-    salary_min = f.get("salary_min") or "-"
-    remote_flag = f.get("remote", False)
-    remote = "☑" if remote_flag else "☐"
-    employment_codes = f.get("employment", [])
-    employment_ru = ",".join(_employment_label("ru", e) for e in employment_codes) or "-"
-    employment_en = ",".join(_employment_label("en", e) for e in employment_codes) or "-"
-    days = f.get("days") or "7"
-    header = _L(lang, "🔍 Поиск\nУточните фильтры или запустите сразу.", "🔍 Search\nAdjust filters or start now.")
-    state_line_ru = (
-        f"{_field_label('ru','what')}: \"{what}\" | "
-        f"{_field_label('ru','where')}: \"{where}\" | "
-        f"{_field_label('ru','salary_min')}: {salary_min} | "
-        f"{_field_label('ru','remote')}: {'да' if remote_flag else 'нет'} | "
-        f"{_field_label('ru','employment')}: {employment_ru} | "
-        f"{_field_label('ru','days')}: {days}"
-    )
-    state_line_en = (
-        f"{_field_label('en','what')}: \"{what}\" | "
-        f"{_field_label('en','where')}: \"{where}\" | "
-        f"{_field_label('en','salary_min')}: {salary_min} | "
-        f"{_field_label('en','remote')}: {remote_flag} | "
-        f"{_field_label('en','employment')}: {employment_en} | "
-        f"{_field_label('en','days')}: {days}"
-    )
-    state_line = _L(lang, state_line_ru, state_line_en)
-    rows: list[list[InlineKeyboardButton]] = [
-        [
-            InlineKeyboardButton(text=f"✏️ {_field_label(lang,'what')}", callback_data="filters:edit:what"),
-            InlineKeyboardButton(text=f"📍 {_field_label(lang,'where')}", callback_data="filters:edit:where"),
-        ],
-        [
-            InlineKeyboardButton(text=f"💰 {_field_label(lang,'salary_min')}", callback_data="filters:edit:salary_min"),
-            InlineKeyboardButton(text=f"🏠 {_field_label(lang,'remote')} {remote}", callback_data="filters:toggle:remote"),
-        ],
-        [
-            InlineKeyboardButton(text=f"🧩 {_field_label(lang,'skills')}", callback_data="filters:edit:skills"),
-            InlineKeyboardButton(text=f"🗓 {_field_label(lang,'days')}", callback_data="filters:edit:days"),
-        ],
-        [
-            InlineKeyboardButton(text=_L(lang, "▶️ Показать", "▶️ Show"), callback_data="search:show"),
-            InlineKeyboardButton(text=_L(lang, "♻️ Сброс", "♻️ Reset"), callback_data="filters:reset"),
-        ],
-        _footer_row(lang),
-    ]
-    return f"{header}\n{state_line}", InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _render_card(lang: str, card: dict[str, str], payload: dict[str, Any]) -> tuple[str, InlineKeyboardMarkup]:
@@ -457,14 +408,12 @@ def _render_screen(lang: str, state: str, payload: dict[str, Any]) -> tuple[str,
     if state.startswith("settings_step_"):
         step = int(state.split("_")[-1])
         return _render_settings_step(lang, step, payload)
-    if state == "search_filters":
-        return _render_filters(lang, payload)
     if state == "search_card":
         cards = payload.get("cards", [])
         idx = int(payload.get("cursor", 0))
         if not cards:
-            empty = _L(lang, "😕 Подходящих вакансий нет. Попробуйте снять часть фильтров или разрешить Remote.", "😕 No matching jobs. Try relaxing filters or enabling Remote.")
-            kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=_L(lang, "🧹 Сброс фильтров", "🧹 Reset filters"), callback_data="filters:reset")], [InlineKeyboardButton(text=_L(lang, "🌐 Remote: Вкл", "🌐 Remote: On"), callback_data="filters:force_remote")], _footer_row(lang)])
+            empty = _L(lang, "😕 Подходящих вакансий нет.", "😕 No matching jobs.")
+            kb = InlineKeyboardMarkup(inline_keyboard=[_footer_row(lang)])
             return empty, kb
         return _render_card(lang, cards[idx], payload)
     if state == "about":
@@ -509,8 +458,7 @@ async def nav_back(cq: CallbackQuery, session, t, lang: str):
         "settings_step_3": "settings_step_2",
         "settings_step_4": "settings_step_3",
         "settings_step_5": "settings_step_4",
-        "search_filters": "menu",
-        "search_card": "search_filters",
+        "search_card": "menu",
         "about": "menu",
         "support": "menu",
         "welcome": "welcome",
@@ -642,65 +590,6 @@ async def search_direct(cq: CallbackQuery, session, cfg: AppConfig, adzuna: Adzu
 
 
 # Filters interactions
-@router.callback_query(F.data.startswith("filters:toggle:"))
-async def filters_toggle(cq: CallbackQuery, session, t, lang: str):
-    ui = UiSessionsRepo(session)
-    row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
-    payload = row.payload or {"filters": {}}
-    f = payload.setdefault("filters", {})
-    _, _, field = cq.data.split(":", 2)
-    if field == "remote":
-        f["remote"] = not bool(f.get("remote"))
-    if field == "force_remote":
-        f["remote"] = True
-    await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
-    text, kb = _render_filters(lang, payload)
-    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    await session.commit()
-    await cq.answer("")
-
-
-@router.callback_query(F.data == "filters:reset")
-async def filters_reset(cq: CallbackQuery, session, t, lang: str):
-    payload = {"filters": {"days": 7, "remote": False, "employment": []}}
-    ui = UiSessionsRepo(session)
-    row = await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
-    text, kb = _render_filters(lang, payload)
-    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    await session.commit()
-    await cq.answer("")
-
-
-# Micro-form inputs: set input mode in payload and wait for text messages
-@router.callback_query(F.data.startswith("filters:edit:"))
-async def filters_edit(cq: CallbackQuery, session, t, lang: str):
-    field = cq.data.split(":")[2]
-    ui = UiSessionsRepo(session)
-    row = await ui.upsert(cq.message.chat.id, cq.from_user.id)
-    payload = row.payload or {"filters": {}}
-    payload["input_mode"] = f"filters:{field}"
-    await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
-    # Commit before prompting to avoid losing input if user replies quickly
-    await session.commit()
-    if field == "what":
-        hint = _L(
-            lang,
-            "Введите должность или ключевые слова, например: Python разработчик",
-            "Enter job title or keywords, e.g., Python developer",
-        )
-    else:
-        hint = _L(
-            lang,
-            f"Введите значение для {_field_label('ru', field)}",
-            f"Enter value for {_field_label('en', field)}",
-        )
-    text, kb = _render_filters(lang, payload)
-    text = f"{text}\n\n{hint}"
-    await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
-    await session.commit()
-    await cq.answer("")
-
-
 @router.message()
 async def on_free_text(m: Message, session, t, lang: str):
     # Capture text if input_mode is set
@@ -715,20 +604,7 @@ async def on_free_text(m: Message, session, t, lang: str):
     if not input_mode:
         return
     bot = m.bot
-    if input_mode.startswith("filters:"):
-        _, field = input_mode.split(":", 1)
-        f = payload.setdefault("filters", {})
-        if field == "salary_min" or field == "days":
-            try:
-                f[field] = int(m.text.strip())
-            except Exception:
-                pass
-        else:
-            f[field] = m.text.strip()
-        payload.pop("input_mode", None)
-        state = "search_filters"
-        text, kb = _render_filters(lang, payload)
-    elif input_mode.startswith("settings:"):
+    if input_mode.startswith("settings:"):
         _, field = input_mode.split(":", 1)
         f = payload.setdefault("filters", {})
         if field == "salary_min":
@@ -885,7 +761,7 @@ async def search_show(cq: CallbackQuery, session, cfg: AppConfig, adzuna: Adzuna
         formats=prof.formats if prof and prof.formats else [],
         experience_yrs=prof.experience_yrs if prof and prof.experience_yrs else 0,
     )
-    params = SearchParams(max_days_old=int(payload.get("filters", {}).get("days") or cfg.search.max_days_old_default), sort="relevance")
+    params = SearchParams(max_days_old=cfg.search.max_days_old_default, sort="relevance")
     try:
         results = await adzuna.search("gb", 1, cfg.search.results_per_page, what=profile.role or None, where=(payload.get("filters", {}).get("where") or None), sort=params.sort, max_days_old=params.max_days_old)
     except Exception:

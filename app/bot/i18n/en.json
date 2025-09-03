@@ -53,7 +53,6 @@
   "search.progress.step2": "⏳ Searching..",
   "search.progress.step3": "⏳ Searching...",
   "search.empty": "😕 No matching jobs.",
-  "search.empty.hint": "Try relaxing filters or allowing Remote.",
 
   "results.title": "📊 Found",
   "results.kpv": ["Shown: {shown} of {total}"],
@@ -133,8 +132,5 @@
   "buttons.subs.daily": "🗓 Daily",
   "buttons.subs.weekly": "📅 Weekly",
   "buttons.subs.toggle": "🔔 On/Off",
-  "buttons.subs.time": "⏰ Change time",
-  "chips.search.clear_category": "🧹 Clear category",
-  "chips.search.days_30": "⏳ days=30",
-  "chips.search.add_remote": "🌐 Add Remote"
+  "buttons.subs.time": "⏰ Change time"
 }

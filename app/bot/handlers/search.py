@@ -13,10 +13,6 @@ from app.repositories.profiles import ProfilesRepo
 from app.repositories.shortkeys import ShortKeysRepo
 from app.bot.keyboards import (
     card_kb,
-    search_filters_kb,
-    empty_search_suggestions_kb,
-    main_menu_kb,
-    with_lang_row,
     pf_role_kb,
 )
 
@@ -105,9 +101,7 @@ async def find_cmd(
         results = []
     pr = process(results, profile, params, cfg)
     if not pr["cards"]:
-        # Empty screen with hint
-        text = f"{t('search.empty')}\n———\n{t('search.empty.hint')}"
-        await m.answer(text, reply_markup=empty_search_suggestions_kb(t, lang))
+        await m.answer(t("search.empty"))
         return
     sk = ShortKeysRepo(store)
     for c in pr["cards"][:5]:
@@ -121,30 +115,6 @@ async def find_cmd(
     res_kpv_tpl = (t("results.kpv") or ["Показано: {shown} из {total}"])[0]
     res_line = res_kpv_tpl.replace("{shown}", str(shown)).replace("{total}", str(total))
     await m.answer(f"{res_header}\n———\n{res_line}")
-
-
-@router.callback_query(F.data == "menu:find")
-async def open_search_filters(cq: CallbackQuery, session, cfg: AppConfig, t, lang: str):
-    # Build state line from profile + defaults
-    prof = await ProfilesRepo(session).get(cq.from_user.id)
-    what = (prof.role if prof and prof.role else "-")
-    where = (prof.locations[0] if prof and prof.locations else "-")
-    distance = "-"
-    days = str(cfg.search.max_days_old_default)
-    contract = "-"
-    employment = "-"
-    category = "-"
-    sort = "relevance"
-    state_line = f"what: \"{what}\" | where: \"{where}\" | distance_km: {distance} | max_days_old: {days} | contract: {contract} | employment: {employment} | category: {category} | sort: {sort}"
-    await cq.message.answer(f"{t('search.title')}\n{state_line}", reply_markup=search_filters_kb(t, lang))
-    await cq.answer("")
-
-
-@router.callback_query(F.data == "search:back")
-async def search_back(cq: CallbackQuery, t, lang: str):
-    kb = with_lang_row(main_menu_kb(t), lang, t)
-    await cq.message.answer(t("menu.title"), reply_markup=kb)
-    await cq.answer("")
 
 
 @router.callback_query(F.data == "search:start")
@@ -190,8 +160,7 @@ async def search_start(
         results = []
     pr = process(results, profile, params, cfg)
     if not pr["cards"]:
-        text = f"{t('search.empty')}\n———\n{t('search.empty.hint')}"
-        await cq.message.answer(text, reply_markup=empty_search_suggestions_kb(t, lang))
+        await cq.message.answer(t("search.empty"))
         await cq.answer("")
         return
     sk = ShortKeysRepo(store)
