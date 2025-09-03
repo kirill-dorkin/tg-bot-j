@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -26,12 +25,12 @@ class Profile(Base):
     __tablename__ = "profiles"
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     role: Mapped[str | None] = mapped_column(Text)
-    employment_types: Mapped[list[str] | None] = mapped_column(ARRAY(String))
-    skills: Mapped[list[str] | None] = mapped_column(ARRAY(String))
-    locations: Mapped[list[str] | None] = mapped_column(ARRAY(String))
+    employment_types: Mapped[list[str] | None] = mapped_column(JSON)
+    skills: Mapped[list[str] | None] = mapped_column(JSON)
+    locations: Mapped[list[str] | None] = mapped_column(JSON)
     salary_min: Mapped[int | None] = mapped_column(Integer)
     salary_max: Mapped[int | None] = mapped_column(Integer)
-    formats: Mapped[list[str] | None] = mapped_column(ARRAY(String))
+    formats: Mapped[list[str] | None] = mapped_column(JSON)
     experience_yrs: Mapped[int | None] = mapped_column(Integer)
 
 
