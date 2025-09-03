@@ -25,6 +25,13 @@ async def main() -> None:
         return
     # Ensure no leftover webhooks interfere with polling
     await c.bot.delete_webhook(drop_pending_updates=True)
+    # Probe for existing long-polling sessions to avoid noisy errors
+    try:
+        await c.bot.get_updates(limit=1, timeout=0)
+    except TelegramConflictError:
+        print("Another bot instance is already running. Exiting.", file=sys.stderr)
+        await c.store.delete(lock_key)
+        return
 
     # Lightweight web server for Render.com health checks
     async def http_health(_: web.Request) -> web.Response:
@@ -67,11 +74,6 @@ async def main() -> None:
 
     try:
         await c.dp.start_polling(c.bot)
-    except TelegramConflictError:
-        print(
-            "Another bot instance is already running. Exiting.",
-            file=sys.stderr,
-        )
     finally:
         await c.store.delete(lock_key)
 
