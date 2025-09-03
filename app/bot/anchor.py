@@ -160,6 +160,14 @@ async def on_lang_toggle(cq: CallbackQuery, session):
     await cq.answer("")
 
 
+EMPLOYMENT_LABELS = {
+    "full": "Full-time",
+    "part": "Part-time",
+    "contract": "Contract",
+    "intern": "Internship",
+}
+
+
 def _render_profile_step(lang: str, step: int, payload: dict[str, Any]) -> tuple[str, InlineKeyboardMarkup]:
     if step == 1:
         txt = _L(lang, "👤 Профиль · Шаг 1/4\nВведите имя, как в откликах (можно латиницей).", "👤 Profile · Step 1/4\nEnter your name as used in applications.")
@@ -189,19 +197,34 @@ def _render_profile_step(lang: str, step: int, payload: dict[str, Any]) -> tuple
             rows = [[InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="profile:next:3")], _footer_row(lang)]
         return txt, InlineKeyboardMarkup(inline_keyboard=rows)
     if step == 3:
-        txt = _L(lang, "👤 Профиль · Шаг 3/4\nВыберите тип занятости (можно несколько).", "👤 Profile · Step 3/4\nSelect employment type (multiple allowed).")
+        txt = _L(
+            lang,
+            "👤 Профиль · Шаг 3/4\nВыберите тип занятости (можно несколько) и нажмите Далее, когда закончите.",
+            "👤 Profile · Step 3/4\nSelect employment type (multiple allowed) and press Next when done.",
+        )
         selected: set[str] = set(payload.get("profile", {}).get("employment", []))
-        def mark(code: str, label: str) -> str:
+
+        def mark(code: str) -> str:
+            label = EMPLOYMENT_LABELS[code]
             return ("🟩 " if code in selected else "") + label
+
         rows = [
-            [InlineKeyboardButton(text=mark("full", "Full-time"), callback_data="profile:toggle:emp:full"), InlineKeyboardButton(text=mark("part", "Part-time"), callback_data="profile:toggle:emp:part")],
-            [InlineKeyboardButton(text=mark("contract", "Contract"), callback_data="profile:toggle:emp:contract"), InlineKeyboardButton(text=mark("intern", "Internship"), callback_data="profile:toggle:emp:intern")],
+            [
+                InlineKeyboardButton(text=mark("full"), callback_data="profile:toggle:emp:full"),
+                InlineKeyboardButton(text=mark("part"), callback_data="profile:toggle:emp:part"),
+            ],
+            [
+                InlineKeyboardButton(text=mark("contract"), callback_data="profile:toggle:emp:contract"),
+                InlineKeyboardButton(text=mark("intern"), callback_data="profile:toggle:emp:intern"),
+            ],
         ]
         if selected:
-            status = ", ".join([{
-                "full": "Full-time", "part": "Part-time", "contract": "Contract", "intern": "Internship"
-            }[s] for s in selected])
-            txt = _L(lang, f"👤 Профиль · Шаг 3/4\nВыбрано: {status}", f"👤 Profile · Step 3/4\nSelected: {status}")
+            status = ", ".join(EMPLOYMENT_LABELS[s] for s in selected)
+            txt = _L(
+                lang,
+                f"👤 Профиль · Шаг 3/4\nВыбрано: {status}",
+                f"👤 Profile · Step 3/4\nSelected: {status}",
+            )
             rows.append([InlineKeyboardButton(text=_L(lang, "Далее →", "Next →"), callback_data="profile:next:4")])
         rows.append(_footer_row(lang))
         return txt, InlineKeyboardMarkup(inline_keyboard=rows)
@@ -210,7 +233,7 @@ def _render_profile_step(lang: str, step: int, payload: dict[str, Any]) -> tuple
     name = p.get("name", "—")
     industry = p.get("industry", "—")
     et = p.get("employment", [])
-    et_disp = ", ".join(et) if et else "—"
+    et_disp = ", ".join(EMPLOYMENT_LABELS.get(e, e) for e in et) if et else "—"
     txt = _L(lang,
               f"👤 Профиль · Шаг 4/4\nПроверьте данные:\n— Имя: {name}\n— Сфера: {industry}\n— Тип занятости: {et_disp}\n\nСохранить?",
               f"👤 Profile · Step 4/4\nReview details:\n— Name: {name}\n— Field: {industry}\n— Employment: {et_disp}\n\nSave?")
@@ -578,12 +601,10 @@ async def profile_actions(cq: CallbackQuery, session, t, lang: str):
     elif parts[1] == "toggle" and parts[2] == "emp":
         code = parts[3]
         sel = set(p.get("employment", []))
-        label_map = {"full": "Full-time", "part": "Part-time", "contract": "Contract", "intern": "Internship"}
-        label = label_map.get(code, code)
-        if label in sel:
-            sel.remove(label)
+        if code in sel:
+            sel.remove(code)
         else:
-            sel.add(label)
+            sel.add(code)
         p["employment"] = list(sel)
         await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="profile_step_3", payload=payload)
         text, kb = _render_profile_step(lang, 3, payload)
