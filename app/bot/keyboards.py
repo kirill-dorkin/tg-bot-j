@@ -65,32 +65,6 @@ def next_profile_kb(t) -> InlineKeyboardMarkup:
     )
 
 
-def search_filters_kb(t, lang: str) -> InlineKeyboardMarkup:
-    kb: list[list[InlineKeyboardButton]] = [
-        [InlineKeyboardButton(text=t("buttons.search.what"), callback_data="search:edit:what"), InlineKeyboardButton(text=t("buttons.search.where"), callback_data="search:edit:where")],
-        [InlineKeyboardButton(text=t("buttons.search.distance"), callback_data="search:edit:distance"), InlineKeyboardButton(text=t("buttons.search.days"), callback_data="search:edit:days")],
-        [InlineKeyboardButton(text=t("buttons.search.contract"), callback_data="search:edit:contract"), InlineKeyboardButton(text=t("buttons.search.employment"), callback_data="search:edit:employment")],
-        [InlineKeyboardButton(text=t("buttons.search.category"), callback_data="search:edit:category"), InlineKeyboardButton(text=t("buttons.search.sort"), callback_data="search:edit:sort")],
-        [
-            InlineKeyboardButton(text=t("buttons.search.start"), callback_data="search:start"),
-            InlineKeyboardButton(text=t("buttons.search.reset"), callback_data="search:reset"),
-            InlineKeyboardButton(text=t("buttons.back"), callback_data="search:back"),
-        ],
-        _lang_toggle_row(lang, t),
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=kb)
-
-
-def empty_search_suggestions_kb(t, lang: str) -> InlineKeyboardMarkup:
-    kb: list[list[InlineKeyboardButton]] = [
-        [InlineKeyboardButton(text=t("chips.search.clear_category"), callback_data="search:chip:clear_category")],
-        [InlineKeyboardButton(text=t("chips.search.days_30"), callback_data="search:chip:days30"), InlineKeyboardButton(text=t("chips.search.add_remote"), callback_data="search:chip:add_remote")],
-        [InlineKeyboardButton(text=t("buttons.back"), callback_data="search:back")],
-        _lang_toggle_row(lang, t),
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=kb)
-
-
 # -------- Profile inline wizard keyboards --------
 
 # Keep labels minimal and language-aware directly in code for speed.
