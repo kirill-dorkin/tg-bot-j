@@ -1,4 +1,4 @@
-import types
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -19,8 +19,13 @@ class DummyBot:
 
 
 @pytest.mark.asyncio
-async def test_conflict_suppressed():
+async def test_conflict_retries(monkeypatch):
+    async def fast_sleep(_):
+        pass
+
+    monkeypatch.setattr("app.infra.dispatcher.asyncio.sleep", fast_sleep)
     bot = DummyBot()
-    gen = Dispatcher._listen_updates(bot)
-    updates = [u async for u in gen]
-    assert updates == []
+    gen = Dispatcher._listen_updates(bot, polling_timeout=0)
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(anext(gen), 0.01)
+    await gen.aclose()
