@@ -35,8 +35,12 @@ class Dispatcher(AiogramDispatcher):
             try:
                 updates = await bot(get_updates, **kwargs)
             except TelegramConflictError:
-                # Another long-polling session is running; exit silently
-                return
+                loggers.dispatcher.info(
+                    "Polling conflict detected; retrying... (bot id = %d)",
+                    bot.id,
+                )
+                await backoff.asleep()
+                continue
             except Exception as e:  # pragma: no cover - network failures
                 failed = True
                 loggers.dispatcher.error(
