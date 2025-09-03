@@ -11,10 +11,8 @@ from app.domain.pipeline import process
 from app.integrations.adzuna_client import AdzunaClient
 from app.repositories.profiles import ProfilesRepo
 from app.repositories.shortkeys import ShortKeysRepo
-from app.bot.keyboards import (
-    card_kb,
-    pf_role_kb,
-)
+from app.bot.keyboards import card_kb
+from app.bot.fsm_states import SearchFSM
 
 
 router = Router()
@@ -80,10 +78,9 @@ async def find_cmd(
     await m.answer(t("search.progress.step3"))
     prof = await ProfilesRepo(session).get(m.from_user.id)
     if not prof:
-        # Launch profile wizard if no settings
-        await state.update_data(pf={"skills": [], "locations": [], "formats": []})
-        text = f"{t('profile.form.title')}\n\n{t('profile.form.role')}"
-        await m.answer(text, reply_markup=pf_role_kb(lang))
+        await state.set_state(SearchFSM.role)
+        await state.update_data(flow="search")
+        await m.answer(t("profile.form.role"))
         return
     profile = DProfile(
         role=prof.role or "",
@@ -146,9 +143,9 @@ async def search_start(
     prof = await ProfilesRepo(session).get(cq.from_user.id)
     if not prof:
         if state:
-            await state.update_data(pf={"skills": [], "locations": [], "formats": []})
-            text = f"{t('profile.form.title')}\n\n{t('profile.form.role')}"
-            await cq.message.answer(text, reply_markup=pf_role_kb(lang))
+            await state.set_state(SearchFSM.role)
+            await state.update_data(flow="search")
+            await cq.message.answer(t("profile.form.role"))
         else:
             await cq.message.answer(t("search.sub"))
         await cq.answer("")
