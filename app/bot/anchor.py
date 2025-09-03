@@ -42,6 +42,20 @@ def _footer_row(lang: str) -> list[InlineKeyboardButton]:
     ]
 
 
+def _field_label(lang: str, field: str) -> str:
+    labels = {
+        "what": ("что", "what"),
+        "where": ("где", "where"),
+        "salary_min": ("мин. з/п", "salary_min"),
+        "remote": ("удалёнка", "remote"),
+        "employment": ("занятость", "employment"),
+        "days": ("дней", "days"),
+        "skills": ("навыки", "skills"),
+    }
+    ru, en = labels.get(field, (field, field))
+    return ru if lang == "ru" else en
+
+
 async def _ensure_anchor_and_state(msg: Message, session) -> tuple[int, dict[str, Any]]:
     repo = UiSessionsRepo(session)
     row = await repo.get(msg.chat.id, msg.from_user.id)
@@ -212,16 +226,45 @@ def _render_filters(lang: str, payload: dict[str, Any]) -> tuple[str, InlineKeyb
     what = f.get("what") or "-"
     where = f.get("where") or "-"
     salary_min = f.get("salary_min") or "-"
-    remote = "☑" if f.get("remote") else "☐"
+    remote_flag = f.get("remote", False)
+    remote = "☑" if remote_flag else "☐"
     employment = ",".join(f.get("employment", [])) or "-"
     days = f.get("days") or "7"
     header = _L(lang, "🔍 Поиск\nУточните фильтры или запустите сразу.", "🔍 Search\nAdjust filters or start now.")
-    state_line = f"what: \"{what}\" | where: \"{where}\" | salary_min: {salary_min} | remote: {f.get('remote', False)} | type: {employment} | days: {days}"
+    state_line_ru = (
+        f"{_field_label('ru','what')}: \"{what}\" | "
+        f"{_field_label('ru','where')}: \"{where}\" | "
+        f"{_field_label('ru','salary_min')}: {salary_min} | "
+        f"{_field_label('ru','remote')}: {'да' if remote_flag else 'нет'} | "
+        f"{_field_label('ru','employment')}: {employment} | "
+        f"{_field_label('ru','days')}: {days}"
+    )
+    state_line_en = (
+        f"{_field_label('en','what')}: \"{what}\" | "
+        f"{_field_label('en','where')}: \"{where}\" | "
+        f"{_field_label('en','salary_min')}: {salary_min} | "
+        f"{_field_label('en','remote')}: {remote_flag} | "
+        f"{_field_label('en','employment')}: {employment} | "
+        f"{_field_label('en','days')}: {days}"
+    )
+    state_line = _L(lang, state_line_ru, state_line_en)
     rows: list[list[InlineKeyboardButton]] = [
-        [InlineKeyboardButton(text="✏️ what", callback_data="filters:edit:what"), InlineKeyboardButton(text="📍 where", callback_data="filters:edit:where")],
-        [InlineKeyboardButton(text="💰 salary_min", callback_data="filters:edit:salary_min"), InlineKeyboardButton(text=f"🏠 remote {remote}", callback_data="filters:toggle:remote")],
-        [InlineKeyboardButton(text="🧩 skills", callback_data="filters:edit:skills"), InlineKeyboardButton(text="🗓 days", callback_data="filters:edit:days")],
-        [InlineKeyboardButton(text=_L(lang, "▶️ Показать", "▶️ Show"), callback_data="search:show"), InlineKeyboardButton(text=_L(lang, "♻️ Сброс", "♻️ Reset"), callback_data="filters:reset")],
+        [
+            InlineKeyboardButton(text=f"✏️ {_field_label(lang,'what')}", callback_data="filters:edit:what"),
+            InlineKeyboardButton(text=f"📍 {_field_label(lang,'where')}", callback_data="filters:edit:where"),
+        ],
+        [
+            InlineKeyboardButton(text=f"💰 {_field_label(lang,'salary_min')}", callback_data="filters:edit:salary_min"),
+            InlineKeyboardButton(text=f"🏠 {_field_label(lang,'remote')} {remote}", callback_data="filters:toggle:remote"),
+        ],
+        [
+            InlineKeyboardButton(text=f"🧩 {_field_label(lang,'skills')}", callback_data="filters:edit:skills"),
+            InlineKeyboardButton(text=f"🗓 {_field_label(lang,'days')}", callback_data="filters:edit:days"),
+        ],
+        [
+            InlineKeyboardButton(text=_L(lang, "▶️ Показать", "▶️ Show"), callback_data="search:show"),
+            InlineKeyboardButton(text=_L(lang, "♻️ Сброс", "♻️ Reset"), callback_data="filters:reset"),
+        ],
         _footer_row(lang),
     ]
     return f"{header}\n{state_line}", InlineKeyboardMarkup(inline_keyboard=rows)
@@ -427,7 +470,11 @@ async def filters_edit(cq: CallbackQuery, session, t, lang: str):
     payload = row.payload or {"filters": {}}
     payload["input_mode"] = f"filters:{field}"
     await ui.upsert(cq.message.chat.id, cq.from_user.id, screen_state="search_filters", payload=payload)
-    hint = _L(lang, f"Введите значение для {field}", f"Enter value for {field}")
+    hint = _L(
+        lang,
+        f"Введите значение для {_field_label('ru', field)}",
+        f"Enter value for {_field_label('en', field)}",
+    )
     text, kb = _render_filters(lang, payload)
     text = f"{text}\n\n{hint}"
     await _edit_anchor(cq, row.anchor_message_id or cq.message.message_id, text, kb)
@@ -440,6 +487,10 @@ async def on_free_text(m: Message, session, t, lang: str):
     # Capture text if input_mode is set
     ui = UiSessionsRepo(session)
     row = await ui.upsert(m.chat.id, m.from_user.id)
+    anchor_id = row.anchor_message_id
+    if not anchor_id:
+        anchor_id, _ = await _ensure_anchor_and_state(m, session)
+        row.anchor_message_id = anchor_id
     payload = (row.payload or {})
     input_mode = payload.get("input_mode")
     if not input_mode:
@@ -458,7 +509,7 @@ async def on_free_text(m: Message, session, t, lang: str):
         payload.pop("input_mode", None)
         await ui.upsert(m.chat.id, m.from_user.id, screen_state="search_filters", payload=payload)
         text, kb = _render_filters(lang, payload)
-        await _edit_anchor(m, row.anchor_message_id or m.message_id, text, kb)
+        await _edit_anchor(m, anchor_id, text, kb)
         await session.commit()
         return
     if input_mode == "profile:name":
@@ -467,7 +518,7 @@ async def on_free_text(m: Message, session, t, lang: str):
         payload.pop("input_mode", None)
         await ui.upsert(m.chat.id, m.from_user.id, screen_state="profile_step_1", payload=payload)
         text, kb = _render_profile_step(lang, 1, payload)
-        await _edit_anchor(m, row.anchor_message_id or m.message_id, text, kb)
+        await _edit_anchor(m, anchor_id, text, kb)
         await session.commit()
         return
     if input_mode == "profile:industry":
@@ -476,7 +527,7 @@ async def on_free_text(m: Message, session, t, lang: str):
         payload.pop("input_mode", None)
         await ui.upsert(m.chat.id, m.from_user.id, screen_state="profile_step_2", payload=payload)
         text, kb = _render_profile_step(lang, 2, payload)
-        await _edit_anchor(m, row.anchor_message_id or m.message_id, text, kb)
+        await _edit_anchor(m, anchor_id, text, kb)
         await session.commit()
 
 
