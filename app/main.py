@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import sys
 from pathlib import Path
 
 from aiohttp import web
@@ -16,6 +17,11 @@ from app.container import build_container
 
 async def main() -> None:
     c = await build_container()
+    # Acquire a simple distributed lock to avoid running multiple instances
+    lock_key = "bot:lock"
+    if not await c.store.set_nx(lock_key, str(os.getpid()), ex=60):
+        print("Another bot instance is already running. Exiting.", file=sys.stderr)
+        return
     # Ensure no leftover webhooks interfere with polling
     await c.bot.delete_webhook(drop_pending_updates=True)
 
@@ -58,7 +64,10 @@ async def main() -> None:
     router.include_router(h_health.router)
     c.dp.include_router(router)
 
-    await c.dp.start_polling(c.bot)
+    try:
+        await c.dp.start_polling(c.bot)
+    finally:
+        await c.store.delete(lock_key)
 
 
 if __name__ == "__main__":
