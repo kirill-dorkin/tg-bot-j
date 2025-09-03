@@ -497,6 +497,7 @@ async def on_free_text(m: Message, session, t, lang: str):
     input_mode = payload.get("input_mode")
     if not input_mode:
         return
+    bot = m.bot
     if input_mode.startswith("filters:"):
         _, field = input_mode.split(":", 1)
         f = payload.setdefault("filters", {})
@@ -504,34 +505,42 @@ async def on_free_text(m: Message, session, t, lang: str):
             try:
                 f[field] = int(m.text.strip())
             except Exception:
-                # keep as is
                 pass
         else:
             f[field] = m.text.strip()
         payload.pop("input_mode", None)
-        await ui.upsert(m.chat.id, m.from_user.id, screen_state="search_filters", payload=payload)
+        state = "search_filters"
         text, kb = _render_filters(lang, payload)
-        await _edit_anchor(m, anchor_id, text, kb)
-        await session.commit()
-        return
-    if input_mode == "profile:name":
+    elif input_mode == "profile:name":
         p = payload.setdefault("profile", {})
         p["name"] = m.text.strip()
         payload.pop("input_mode", None)
-        await ui.upsert(m.chat.id, m.from_user.id, screen_state="profile_step_1", payload=payload)
-        text, kb = _render_profile_step(lang, 1, payload)
-        await _edit_anchor(m, anchor_id, text, kb)
-        await session.commit()
-        return
-    if input_mode == "profile:industry":
+        state = "profile_step_2"
+        text, kb = _render_profile_step(lang, 2, payload)
+    elif input_mode == "profile:industry":
         p = payload.setdefault("profile", {})
         p["industry"] = m.text.strip()
         payload.pop("input_mode", None)
-        await ui.upsert(m.chat.id, m.from_user.id, screen_state="profile_step_2", payload=payload)
-        text, kb = _render_profile_step(lang, 2, payload)
-        await _edit_anchor(m, anchor_id, text, kb)
-        await session.commit()
+        state = "profile_step_3"
+        text, kb = _render_profile_step(lang, 3, payload)
+    else:
+        return
 
+    # Clear chat: remove user message and previous anchor
+    try:
+        await m.delete()
+    except Exception:
+        pass
+    if anchor_id:
+        try:
+            await bot.delete_message(m.chat.id, anchor_id)
+        except Exception:
+            pass
+
+    sent = await bot.send_message(m.chat.id, text, reply_markup=kb)
+    await ui.upsert(m.chat.id, m.from_user.id, screen_state=state, payload=payload, anchor_message_id=sent.message_id)
+    await session.commit()
+    return
 
 @router.callback_query(F.data.startswith("profile:"))
 async def profile_actions(cq: CallbackQuery, session, t, lang: str):
