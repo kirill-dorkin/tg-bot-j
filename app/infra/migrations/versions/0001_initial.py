@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 
 revision = "0001_initial"
@@ -23,11 +22,11 @@ def upgrade() -> None:
         "profiles",
         sa.Column("user_id", sa.BigInteger(), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
         sa.Column("role", sa.Text()),
-        sa.Column("skills", postgresql.ARRAY(sa.String())),
-        sa.Column("locations", postgresql.ARRAY(sa.String())),
+        sa.Column("skills", sa.JSON()),
+        sa.Column("locations", sa.JSON()),
         sa.Column("salary_min", sa.Integer()),
         sa.Column("salary_max", sa.Integer()),
-        sa.Column("formats", postgresql.ARRAY(sa.String())),
+        sa.Column("formats", sa.JSON()),
         sa.Column("experience_yrs", sa.Integer()),
     )
     op.create_table(
@@ -76,7 +75,7 @@ def upgrade() -> None:
         sa.Column("at", sa.DateTime(timezone=True)),
         sa.Column("user_id", sa.BigInteger()),
         sa.Column("action", sa.Text()),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text())),
+        sa.Column("payload", sa.JSON()),
     )
 
 
