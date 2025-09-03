@@ -8,8 +8,12 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
 from app.config import Settings, load_app_config, AppConfig
 from app.infra.db import make_engine, make_session_factory
+from app.infra.db_models import UiSession
 from app.infra.redis import InMemoryStore, RedisStore, KeyValueStore
 from app.integrations.adzuna_client import AdzunaClient
 from app.telemetry.logger import setup_logging, get_logger
@@ -33,11 +37,20 @@ async def build_container() -> Container:
     # Redis store
     try:
         store: KeyValueStore = RedisStore(settings.REDIS_URL)
+        # ensure connection is alive; fallback to memory if unreachable
+        await store.setex("__ping__", 1, "1")
     except Exception:
         store = InMemoryStore()  # graceful degradation
 
     # DB
     engine = make_engine(settings.POSTGRES_DSN)
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:", pool_pre_ping=True)
+        async with engine.begin() as conn:
+            await conn.run_sync(UiSession.__table__.create)
     session_factory = make_session_factory(engine)
 
     adzuna = AdzunaClient(settings, cfg)
