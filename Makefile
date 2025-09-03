@@ -4,6 +4,10 @@
 COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 PRETTY := bash ./scripts/pretty.sh
 
+# Disable BuildKit to avoid depending on buildkitd in restricted environments
+export DOCKER_BUILDKIT ?= 0
+export COMPOSE_DOCKER_CLI_BUILD ?= 0
+
 check-docker:
 	@# Ensure Docker CLI is installed
 	@if ! command -v docker >/dev/null 2>&1; then \
