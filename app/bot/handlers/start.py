@@ -4,11 +4,9 @@ from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from app.bot.fsm_states import ProfileFSM
 from app.bot.keyboards import (
     lang_kb,
     main_menu_kb,
-    next_profile_kb,
     with_lang_row,
     pf_role_kb,
 )
@@ -28,28 +26,28 @@ async def set_lang(cq: CallbackQuery, t, session, state: FSMContext):
     lang = cq.data.split(":")[1]
     await UsersRepo(session).set_lang(cq.from_user.id, lang)
     await session.commit()
-    # reload t with selected lang
-    await cq.message.edit_text(t("start.lang_set"))
-    await cq.message.answer(t("start.next_profile"), reply_markup=next_profile_kb(t))
+    # Start profile setup immediately with selected language
+    await profile_start(cq, state, t, lang, t("start.lang_set"))
 
 
 @router.message(F.text == "/menu")
 async def menu_cmd(m: Message, t, lang: str):
     kb = with_lang_row(main_menu_kb(t), lang, t)
-    await m.answer(t("menu.title"), reply_markup=kb)
+    text = f"{t('menu.title')}\n{t('menu.sub')}"
+    await m.answer(text, reply_markup=kb)
 
 
 @router.callback_query(F.data == "profile:start")
-async def profile_start(cq: CallbackQuery, state: FSMContext, t, lang: str):
-    # Start inline wizard: keep one message and replace its content per step
+async def profile_start(
+    cq: CallbackQuery,
+    state: FSMContext,
+    t,
+    lang: str,
+    alert: str | None = None,
+):
+    """Start inline profile setup wizard."""
     await state.update_data(pf={"skills": [], "locations": [], "formats": []})
     text = f"{t('profile.form.title')}\n\n{t('profile.form.role')}"
     await cq.message.edit_text(text, reply_markup=pf_role_kb(lang))
-    await cq.answer("")
+    await cq.answer(alert or "")
 
-
-@router.callback_query(F.data == "profile:skip")
-async def profile_skip(cq: CallbackQuery, t, lang: str):
-    kb = with_lang_row(main_menu_kb(t), lang, t)
-    await cq.message.edit_text(t("menu.title"), reply_markup=kb)
-    await cq.answer("")
