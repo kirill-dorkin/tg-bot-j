@@ -8,6 +8,7 @@ from pathlib import Path
 
 from aiohttp import web
 from aiogram import Router
+from aiogram.exceptions import TelegramConflictError
 
 from app.bot.handlers import health as h_health
 from app.bot import anchor as h_anchor
@@ -66,6 +67,11 @@ async def main() -> None:
 
     try:
         await c.dp.start_polling(c.bot)
+    except TelegramConflictError:
+        print(
+            "Another bot instance is already running. Exiting.",
+            file=sys.stderr,
+        )
     finally:
         await c.store.delete(lock_key)
 
