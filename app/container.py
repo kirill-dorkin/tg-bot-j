@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
-
+from aiogram.fsm.storage.redis import RedisStorage
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.config import Settings, load_app_config, AppConfig
+from app.config import AppConfig, Settings, load_app_config
 from app.infra.db import Base, make_engine, make_session_factory
-from app.infra.db_models import UiSession
-from app.infra.redis import InMemoryStore, RedisStore, KeyValueStore
+from app.infra.redis import InMemoryStore, KeyValueStore, RedisStore
 from app.integrations.adzuna_client import AdzunaClient
-from app.telemetry.logger import setup_logging, get_logger
+from app.telemetry.logger import setup_logging
 
 
 @dataclass
@@ -56,7 +54,13 @@ async def build_container() -> Container:
     adzuna = AdzunaClient(settings, cfg)
 
     bot = Bot(settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = Dispatcher(storage=MemoryStorage())
+    # FSM storage backed by Redis; fallback to in-memory on failure
+    try:
+        dp_storage = RedisStorage.from_url(settings.REDIS_URL)
+        await dp_storage.redis.ping()
+    except Exception:
+        dp_storage = MemoryStorage()
+    dp = Dispatcher(storage=dp_storage)
 
     # Attach shared context for middlewares/handlers
     dp["settings"] = settings
