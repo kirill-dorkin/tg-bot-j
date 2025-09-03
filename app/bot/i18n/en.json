@@ -63,6 +63,10 @@
   "card.line2": "📍 {city_region}   💰 {salary}   ⏱ {posted_human}",
   "card.summary": "{summary}",
   "card.apply_url": "{url}",
+  "card.salary_unknown": "Salary not specified",
+  "card.posted.today": "today",
+  "card.posted.yesterday": "yesterday",
+  "card.posted.days_ago": "{days}d ago",
   "card.actions": ["✅ Apply", "⭐️ Save", "🧭 Similar", "🙈 Hide company", "🚩 Report"],
 
   "actions.applied": "🔗 Apply link:",
