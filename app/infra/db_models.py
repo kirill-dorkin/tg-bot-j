@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.mutable import MutableDict
 
 from .db import Base
 
@@ -95,5 +96,5 @@ class UiSession(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     anchor_message_id: Mapped[int | None] = mapped_column(BigInteger)
     screen_state: Mapped[str] = mapped_column(String(64), nullable=False, default="welcome")
-    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default={})
+    payload: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
