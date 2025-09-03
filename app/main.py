@@ -16,6 +16,8 @@ from app.container import build_container
 
 async def main() -> None:
     c = await build_container()
+    # Ensure no leftover webhooks interfere with polling
+    await c.bot.delete_webhook(drop_pending_updates=True)
 
     # Lightweight web server for Render.com health checks
     async def http_health(_: web.Request) -> web.Response:
