@@ -108,7 +108,7 @@
   "errors.ratelimit": "⏱ Слишком много запросов. Повторите позже.",
 
   "help.title": "❓ Помощь",
-  "help.commands": "/find /profile /subscribe /favorites /settings /help",
+  "help.commands": "/find /subscribe /favorites /settings /help",
   "help.source": "Источник: Adzuna. Алгоритм: фильтр → дедуп → скоринг.",
 
   "about.title": "ℹ️ О боте",
@@ -135,5 +135,8 @@
   "buttons.subs.daily": "🗓 Ежедневно",
   "buttons.subs.weekly": "📅 Еженедельно",
   "buttons.subs.toggle": "🔔 Вкл/Выкл",
-  "buttons.subs.time": "⏰ Изменить время"
+  "buttons.subs.time": "⏰ Изменить время",
+  "buttons.settings.role": "✏️ Роль",
+  "buttons.settings.location": "📍 Локация",
+  "buttons.settings.reset": "♻️ Сброс"
 }

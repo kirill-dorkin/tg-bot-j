@@ -108,7 +108,7 @@
   "errors.ratelimit": "⏱ Too many requests. Try later.",
 
   "help.title": "❓ Help",
-  "help.commands": "/find /profile /subscribe /favorites /settings /help",
+  "help.commands": "/find /subscribe /favorites /settings /help",
   "help.source": "Source: Adzuna. Algorithm: filter → dedup → scoring.",
 
   "about.title": "ℹ️ About",
@@ -135,5 +135,8 @@
   "buttons.subs.daily": "🗓 Daily",
   "buttons.subs.weekly": "📅 Weekly",
   "buttons.subs.toggle": "🔔 On/Off",
-  "buttons.subs.time": "⏰ Change time"
+  "buttons.subs.time": "⏰ Change time",
+  "buttons.settings.role": "✏️ Role",
+  "buttons.settings.location": "📍 Location",
+  "buttons.settings.reset": "♻️ Reset"
 }
