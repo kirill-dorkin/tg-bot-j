@@ -13,6 +13,25 @@ from app.telemetry.logger import get_logger
 
 log = get_logger("adzuna")
 
+VALID_COUNTRIES: Sequence[str] = (
+    "au",
+    "at",
+    "br",
+    "ca",
+    "de",
+    "fr",
+    "in",
+    "it",
+    "nl",
+    "nz",
+    "pl",
+    "ru",
+    "sg",
+    "gb",
+    "us",
+    "za",
+)
+
 
 class AdzunaClient:
     def __init__(self, settings: Settings, cfg: AppConfig) -> None:
@@ -43,6 +62,13 @@ class AdzunaClient:
         max_days_old: int | None = None,
         salary_min: int | None = None,
     ) -> list[dict[str, Any]]:
+        if not self._settings.ADZUNA_APP_ID or not self._settings.ADZUNA_APP_KEY:
+            raise ValueError("Adzuna credentials are not configured")
+        if country.lower() not in VALID_COUNTRIES:
+            raise ValueError(f"Unsupported country: {country}")
+        if page < 1 or results_per_page < 1:
+            raise ValueError("Invalid pagination parameters")
+
         base = self._settings.ADZUNA_BASE_URL.rstrip("/")
         url = f"{base}/{country}/search/{page}"
         params: dict[str, Any] = {
@@ -69,16 +95,21 @@ class AdzunaClient:
                     resp = await client.get(url, params=params)
                 resp.raise_for_status()
                 data = resp.json()
-                # Use only allowed fields
                 out: list[dict[str, Any]] = []
+                seen: set[str] = set()
                 for it in data.get("results", []):
+                    url = it.get("redirect_url")
+                    if url and url in seen:
+                        continue
+                    if url:
+                        seen.add(url)
                     out.append(
                         {
                             "title": it.get("title"),
                             "company": {"display_name": (it.get("company") or {}).get("display_name")},
                             "location": {"display_name": (it.get("location") or {}).get("display_name")},
                             "created": it.get("created"),
-                            "redirect_url": it.get("redirect_url"),
+                            "redirect_url": url,
                             "salary_min": it.get("salary_min"),
                             "salary_max": it.get("salary_max"),
                             "category": {
